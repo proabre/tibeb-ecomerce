@@ -205,9 +205,11 @@ export const reviewShop = async (req, res, next) => {
     // This assumes User.role is a single string.
     // Approval and role changes should be transactional in production.
     if (action === "approve") {
-      await User.findOneAndUpdate(
-        { _id: shop.ownerId },
-        { $set: { role: "seller" } },
+      await User.findByIdAndUpdate(
+        shop.ownerId,
+        {
+          $addToSet: { roles: "seller" },
+        },
         { runValidators: true },
       );
     }
