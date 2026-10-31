@@ -10,6 +10,8 @@ import authRoutes from "./routes/authRoutes.js";
 
 import exampleRoutes from "./routes/exampleRoutes.js";
 
+import shopRoutes from "./routes/shopRoutes.js";
+
 const app = express();
 
 app.use(helmet());
@@ -26,6 +28,9 @@ app.use(cookieParser());
 
 //example route
 app.use("/api/examples", exampleRoutes);
+
+//shop route
+app.use("/api/shops", shopRoutes);
 // Health check
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok" });
