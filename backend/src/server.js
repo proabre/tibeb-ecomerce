@@ -12,6 +12,10 @@ import exampleRoutes from "./routes/exampleRoutes.js";
 
 import shopRoutes from "./routes/shopRoutes.js";
 
+import productRoutes from "./routes/productRoutes.js";
+
+import uploadRoutes from "./routes/uploadRoutes.js";
+
 const app = express();
 
 app.use(helmet());
@@ -29,6 +33,9 @@ app.use(cookieParser());
 //example route
 app.use("/api/examples", exampleRoutes);
 
+// Authentication routes
+app.use("/api/auth", authRoutes);
+
 //shop route
 app.use("/api/shops", shopRoutes);
 // Health check
@@ -36,8 +43,11 @@ app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Authentication routes
-app.use("/api/auth", authRoutes);
+//product routes
+app.use("/api/products", productRoutes);
+
+//upload Routes
+app.use("/api/uploads", uploadRoutes);
 
 // Not found
 app.use((req, res) => {

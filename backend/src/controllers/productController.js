@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
-import Product from "../models/Product.js";
+import Product from "../models/Products.js";
 import Shop from "../models/Shop.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
+
+import User from "../models/User.js";
 
 const slugify = (value) =>
   value
@@ -130,15 +132,16 @@ export const getProductById = asyncHandler(async (req, res) => {
 
   res.status(200).json({ product });
 });
-
 export const updateProduct = asyncHandler(async (req, res) => {
   const shop = await Shop.findOne({
     ownerId: req.user._id,
+    verificationStatus: "approved",
+    status: "active",
   });
 
   if (!shop) {
-    return res.status(404).json({
-      message: "Shop not found.",
+    return res.status(403).json({
+      message: "You need an approved active shop to edit products",
     });
   }
 
@@ -149,7 +152,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   if (!product) {
     return res.status(404).json({
-      message: "Product not found.",
+      message: "Product not found",
     });
   }
 
@@ -163,7 +166,6 @@ export const updateProduct = asyncHandler(async (req, res) => {
     "productionDays",
     "images",
     "variants",
-    "status",
   ];
 
   for (const field of allowedFields) {
@@ -174,32 +176,28 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   if (req.body.title !== undefined) {
     const baseSlug = slugify(req.body.title);
-
-    if (!baseSlug) {
-      return res.status(400).json({
-        message: "Invalid product title.",
-      });
-    }
-
-    product.slug = `${baseSlug}-${product._id.toString().slice(-6)}`;
+    product.slug = `${baseSlug}-${new mongoose.Types.ObjectId()
+      .toString()
+      .slice(-6)}`;
   }
 
   await product.save();
 
   res.status(200).json({
-    message: "Product updated successfully.",
+    message: "Product updated successfully",
     product,
   });
 });
-
 export const deleteProduct = asyncHandler(async (req, res) => {
   const shop = await Shop.findOne({
     ownerId: req.user._id,
+    verificationStatus: "approved",
+    status: "active",
   });
 
   if (!shop) {
-    return res.status(404).json({
-      message: "Shop not found.",
+    return res.status(403).json({
+      message: "You need an approved active shop to delete products",
     });
   }
 
@@ -210,7 +208,7 @@ export const deleteProduct = asyncHandler(async (req, res) => {
 
   if (!product) {
     return res.status(404).json({
-      message: "Product not found.",
+      message: "Product not found",
     });
   }
 
@@ -218,6 +216,154 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   await product.save();
 
   res.status(200).json({
-    message: "Product archived successfully.",
+    message: "Product archived successfully",
   });
+});
+/* ADMIN: Get products awaiting review */
+export const getPendingProducts = asyncHandler(async (req, res) => {
+  const products = await Product.find({
+    status: "draft",
+  })
+    .populate({
+      path: "shopId",
+      select: "name slug verificationStatus status",
+    })
+    .sort({ createdAt: 1 });
+
+  res.status(200).json({
+    count: products.length,
+    products,
+  });
+});
+
+/* ADMIN: Approve or reject a product */
+export const reviewProduct = asyncHandler(async (req, res) => {
+  const { action, rejectionReason } = req.body;
+
+  if (!["approve", "reject"].includes(action)) {
+    return res.status(400).json({
+      message: "Action must be approve or reject.",
+    });
+  }
+
+  const product = await Product.findById(req.params.id);
+
+  if (!product) {
+    return res.status(404).json({
+      message: "Product not found.",
+    });
+  }
+
+  if (product.status !== "draft") {
+    return res.status(400).json({
+      message: "Only draft products can be reviewed.",
+    });
+  }
+
+  const shop = await Shop.findOne({
+    _id: product.shopId,
+    verificationStatus: "approved",
+    status: "active",
+  });
+
+  if (!shop) {
+    return res.status(400).json({
+      message: "The product's shop is not approved and active.",
+    });
+  }
+
+  if (action === "approve") {
+    product.status = "active";
+    product.rejectionReason = "";
+  } else {
+    if (typeof rejectionReason !== "string" || !rejectionReason.trim()) {
+      return res.status(400).json({
+        message: "Please provide a rejection reason.",
+      });
+    }
+
+    product.status = "rejected";
+    product.rejectionReason = rejectionReason.trim();
+  }
+
+  await product.save();
+
+  res.status(200).json({
+    message:
+      action === "approve"
+        ? "Product approved successfully."
+        : "Product rejected successfully.",
+    product,
+  });
+});
+
+/* PUBLIC: Browse active products */
+export const getPublicProducts = asyncHandler(async (req, res) => {
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(
+    50,
+    Math.max(1, Number.parseInt(req.query.limit, 10) || 12),
+  );
+
+  const filter = {
+    status: "active",
+  };
+
+  if (req.query.category) {
+    filter.category = req.query.category;
+  }
+
+  if (req.query.search) {
+    filter.$text = { $search: String(req.query.search) };
+  }
+
+  const approvedShops = await Shop.find({
+    verificationStatus: "approved",
+    status: "active",
+  }).select("_id");
+
+  filter.shopId = {
+    $in: approvedShops.map((shop) => shop._id),
+  };
+
+  const [products, total] = await Promise.all([
+    Product.find(filter)
+      .populate("shopId", "name slug")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit),
+
+    Product.countDocuments(filter),
+  ]);
+
+  res.status(200).json({
+    count: products.length,
+    total,
+    page,
+    pages: Math.ceil(total / limit),
+    products,
+  });
+});
+
+/* PUBLIC: Get one product by slug */
+export const getPublicProductBySlug = asyncHandler(async (req, res) => {
+  const product = await Product.findOne({
+    slug: req.params.slug,
+    status: "active",
+  }).populate({
+    path: "shopId",
+    match: {
+      verificationStatus: "approved",
+      status: "active",
+    },
+    select: "name slug description logo",
+  });
+
+  if (!product || !product.shopId) {
+    return res.status(404).json({
+      message: "Product not found.",
+    });
+  }
+
+  res.status(200).json({ product });
 });
