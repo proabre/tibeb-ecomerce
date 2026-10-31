@@ -299,22 +299,29 @@ export const reviewProduct = asyncHandler(async (req, res) => {
 
 /* PUBLIC: Browse active products */
 export const getPublicProducts = asyncHandler(async (req, res) => {
-  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
-  const limit = Math.min(
-    50,
-    Math.max(1, Number.parseInt(req.query.limit, 10) || 12),
-  );
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 12));
+  const skip = (page - 1) * limit;
 
   const filter = {
     status: "active",
   };
 
+  // Search products
+  if (req.query.search) {
+    filter.$text = {
+      $search: req.query.search,
+    };
+  }
+
+  // Filter by category
   if (req.query.category) {
     filter.category = req.query.category;
   }
 
-  if (req.query.search) {
-    filter.$text = { $search: String(req.query.search) };
+  // Filter by shop
+  if (req.query.shopId) {
+    filter.shopId = req.query.shopId;
   }
 
   const approvedShops = await Shop.find({
@@ -323,6 +330,7 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   }).select("_id");
 
   filter.shopId = {
+    ...(filter.shopId ? { $eq: filter.shopId } : {}),
     $in: approvedShops.map((shop) => shop._id),
   };
 
@@ -330,16 +338,16 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     Product.find(filter)
       .populate("shopId", "name slug")
       .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
+      .skip(skip)
       .limit(limit),
 
     Product.countDocuments(filter),
   ]);
 
   res.status(200).json({
-    count: products.length,
     total,
     page,
+    limit,
     pages: Math.ceil(total / limit),
     products,
   });
