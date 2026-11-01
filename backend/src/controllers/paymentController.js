@@ -175,6 +175,12 @@ const confirmDevelopmentPayment = asyncHandler(async (req, res) => {
         order.paymentStatus = "paid";
         order.paidAt = now;
         order.status = "confirmed";
+
+        order.statusHistory.push({
+          status: "confirmed",
+          note: "Payment confirmed successfully.",
+          changedAt: now,
+        });
       } else {
         payment.status = "failed";
         payment.completedAt = now;

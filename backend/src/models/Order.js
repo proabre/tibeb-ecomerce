@@ -180,6 +180,36 @@ const sellerOrderSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+//order status schema
+
+const orderStatusHistorySchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      required: true,
+      enum: [
+        "pending_payment",
+        "confirmed",
+        "processing",
+        "partially_shipped",
+        "shipped",
+        "completed",
+        "cancelled",
+      ],
+    },
+    note: {
+      type: String,
+      default: "",
+      maxlength: 300,
+    },
+    changedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false },
+);
+
 const orderSchema = new mongoose.Schema(
   {
     orderNumber: {
@@ -286,6 +316,10 @@ const orderSchema = new mongoose.Schema(
     cancelledAt: {
       type: Date,
       default: null,
+    },
+    statusHistory: {
+      type: [orderStatusHistorySchema],
+      default: [],
     },
   },
   {

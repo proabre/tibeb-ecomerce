@@ -188,6 +188,13 @@ const createOrder = asyncHandler(async (req, res) => {
         paymentStatus: "pending",
         status: "pending_payment",
         customerNote: customerNote.trim(),
+        statusHistory: [
+          {
+            status: "pending_payment",
+            note: "Order placed successfully.",
+            changedAt: new Date(),
+          },
+        ],
       });
 
       await order.save({ session });
