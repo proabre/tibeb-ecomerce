@@ -235,7 +235,7 @@ const getMyOrderById = asyncHandler(async (req, res) => {
   const order = await Order.findOne({
     _id: id,
     customerId: req.user._id,
-  });
+  }).lean();
 
   if (!order) {
     return res.status(404).json({
@@ -243,8 +243,49 @@ const getMyOrderById = asyncHandler(async (req, res) => {
     });
   }
 
+  const sellerOrders = order.sellerOrders.map((sellerOrder) => {
+    const items = sellerOrder.items.map((item) => ({
+      productId: item.productId,
+      productTitle: item.productTitle,
+      variantSku: item.variantSku,
+      size: item.size,
+      color: item.color,
+      image: item.image,
+      quantity: item.quantity,
+      unitPriceCents: item.unitPriceCents,
+      lineTotalCents: item.lineTotalCents,
+    }));
+
+    return {
+      shopId: sellerOrder.shopId,
+      status: sellerOrder.status,
+      subtotalCents: sellerOrder.subtotalCents,
+      deliveryFeeCents: sellerOrder.deliveryFeeCents,
+      acceptedAt: sellerOrder.acceptedAt,
+      dispatchedAt: sellerOrder.dispatchedAt,
+      deliveredAt: sellerOrder.deliveredAt,
+      items,
+    };
+  });
+
   return res.status(200).json({
-    order,
+    order: {
+      _id: order._id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      currency: order.currency,
+      subtotalCents: order.subtotalCents,
+      deliveryFeeCents: order.deliveryFeeCents,
+      discountCents: order.discountCents,
+      totalCents: order.totalCents,
+      shippingAddress: order.shippingAddress,
+      customerNote: order.customerNote,
+      createdAt: order.createdAt,
+      paidAt: order.paidAt,
+      cancelledAt: order.cancelledAt,
+      sellerOrders,
+    },
   });
 });
 
@@ -449,8 +490,8 @@ const updateSellerOrderStatus = asyncHandler(async (req, res) => {
     prepare: "preparing",
     ready: "ready_for_pickup",
     dispatch: "dispatched",
+    deliver: "delivered",
   };
-
   if (!allowedActions[action]) {
     return res.status(400).json({
       message: "Invalid order action.",
@@ -507,7 +548,10 @@ const updateSellerOrderStatus = asyncHandler(async (req, res) => {
         accepted: ["preparing", "rejected"],
         preparing: ["ready_for_pickup"],
         ready_for_pickup: ["dispatched"],
-        dispatched: [],
+        dispatched: ["delivered"],
+        delivered: [],
+        rejected: [],
+        cancelled: [],
       };
 
       if (!allowedTransitions[sellerOrder.status]?.includes(nextStatus)) {
@@ -520,7 +564,9 @@ const updateSellerOrderStatus = asyncHandler(async (req, res) => {
 
       // Only accept or prepare orders after payment is confirmed.
       if (
-        ["accept", "prepare", "ready", "dispatch"].includes(action) &&
+        ["accept", "prepare", "ready", "dispatch", "deliver"].includes(
+          action,
+        ) &&
         order.paymentStatus !== "paid"
       ) {
         const error = new Error(
@@ -538,6 +584,10 @@ const updateSellerOrderStatus = asyncHandler(async (req, res) => {
 
       if (action === "dispatch") {
         sellerOrder.dispatchedAt = new Date();
+      }
+
+      if (action === "deliver") {
+        sellerOrder.deliveredAt = new Date();
       }
 
       // Update the overall customer order status.
