@@ -248,4 +248,100 @@ const getMyOrderById = asyncHandler(async (req, res) => {
   });
 });
 
-export { createOrder, getMyOrders, getMyOrderById };
+const cancelMyOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({
+      message: "Invalid order ID.",
+    });
+  }
+
+  const session = await mongoose.startSession();
+
+  let cancelledOrder;
+
+  try {
+    await session.withTransaction(async () => {
+      const order = await Order.findOne({
+        _id: id,
+        customerId: req.user._id,
+      }).session(session);
+
+      if (!order) {
+        const error = new Error("Order not found.");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      if (!["pending_payment", "confirmed"].includes(order.status)) {
+        const error = new Error("This order can no longer be cancelled.");
+        error.statusCode = 400;
+        throw error;
+      }
+
+      // Do not restore stock twice.
+      if (order.status === "cancelled") {
+        const error = new Error("Order is already cancelled.");
+        error.statusCode = 400;
+        throw error;
+      }
+
+      // Restore stock for every purchased variant.
+      for (const sellerOrder of order.sellerOrders) {
+        for (const item of sellerOrder.items) {
+          const product = await Product.findOne({
+            _id: item.productId,
+          }).session(session);
+
+          if (!product) {
+            const error = new Error(
+              `Product ${item.productTitle} could not be found.`,
+            );
+            error.statusCode = 409;
+            throw error;
+          }
+
+          const stockUpdate = await Product.updateOne(
+            {
+              _id: item.productId,
+              "variants.sku": item.variantSku,
+            },
+            {
+              $inc: {
+                "variants.$.stock": item.quantity,
+              },
+            },
+            { session },
+          );
+
+          if (stockUpdate.modifiedCount !== 1) {
+            const error = new Error(
+              `Could not restore stock for ${item.productTitle}.`,
+            );
+            error.statusCode = 409;
+            throw error;
+          }
+        }
+
+        sellerOrder.status = "cancelled";
+      }
+
+      order.status = "cancelled";
+      order.cancelledAt = new Date();
+
+      await order.save({ session });
+
+      cancelledOrder = order;
+    });
+
+    return res.status(200).json({
+      message: "Order cancelled successfully.",
+      order: cancelledOrder,
+    });
+  } finally {
+    await session.endSession();
+  }
+});
+
+export { createOrder, getMyOrders, getMyOrderById, cancelMyOrder };
