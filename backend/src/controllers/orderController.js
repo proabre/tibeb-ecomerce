@@ -344,4 +344,258 @@ const cancelMyOrder = asyncHandler(async (req, res) => {
   }
 });
 
-export { createOrder, getMyOrders, getMyOrderById, cancelMyOrder };
+const getSellerOrders = asyncHandler(async (req, res) => {
+  const shop = await Shop.findOne({
+    ownerId: req.user._id,
+    verificationStatus: "approved",
+    status: "active",
+  });
+
+  if (!shop) {
+    return res.status(404).json({
+      message: "No approved active shop found.",
+    });
+  }
+
+  const orders = await Order.find({
+    "sellerOrders.shopId": shop._id,
+  }).sort({ createdAt: -1 });
+
+  // Return only this seller's part of each customer order.
+  const sellerOrders = orders.map((order) => {
+    const sellerOrder = order.sellerOrders.find(
+      (item) => item.shopId.toString() === shop._id.toString(),
+    );
+
+    return {
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      customerId: order.customerId,
+      shippingAddress: order.shippingAddress,
+      currency: order.currency,
+      paymentStatus: order.paymentStatus,
+      orderStatus: order.status,
+      sellerOrder,
+      createdAt: order.createdAt,
+    };
+  });
+
+  return res.status(200).json({
+    count: sellerOrders.length,
+    orders: sellerOrders,
+  });
+});
+
+const getSellerOrderById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({
+      message: "Invalid order ID.",
+    });
+  }
+
+  const shop = await Shop.findOne({
+    ownerId: req.user._id,
+    verificationStatus: "approved",
+    status: "active",
+  });
+
+  if (!shop) {
+    return res.status(404).json({
+      message: "No approved active shop found.",
+    });
+  }
+
+  const order = await Order.findOne({
+    _id: id,
+    "sellerOrders.shopId": shop._id,
+  });
+
+  if (!order) {
+    return res.status(404).json({
+      message: "Order not found for your shop.",
+    });
+  }
+
+  const sellerOrder = order.sellerOrders.find(
+    (item) => item.shopId.toString() === shop._id.toString(),
+  );
+
+  return res.status(200).json({
+    orderId: order._id,
+    orderNumber: order.orderNumber,
+    shippingAddress: order.shippingAddress,
+    currency: order.currency,
+    paymentStatus: order.paymentStatus,
+    orderStatus: order.status,
+    sellerOrder,
+  });
+});
+
+const updateSellerOrderStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { action } = req.body;
+
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({
+      message: "Invalid order ID.",
+    });
+  }
+
+  const allowedActions = {
+    accept: "accepted",
+    reject: "rejected",
+    prepare: "preparing",
+    ready: "ready_for_pickup",
+    dispatch: "dispatched",
+  };
+
+  if (!allowedActions[action]) {
+    return res.status(400).json({
+      message: "Invalid order action.",
+    });
+  }
+
+  const shop = await Shop.findOne({
+    ownerId: req.user._id,
+    verificationStatus: "approved",
+    status: "active",
+  });
+
+  if (!shop) {
+    return res.status(404).json({
+      message: "No approved active shop found.",
+    });
+  }
+
+  const session = await mongoose.startSession();
+
+  let updatedOrder;
+
+  try {
+    await session.withTransaction(async () => {
+      const order = await Order.findOne({
+        _id: id,
+        "sellerOrders.shopId": shop._id,
+      }).session(session);
+
+      if (!order) {
+        const error = new Error("Order not found for your shop.");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const sellerOrder = order.sellerOrders.find(
+        (item) => item.shopId.toString() === shop._id.toString(),
+      );
+
+      if (
+        sellerOrder.status === "rejected" ||
+        sellerOrder.status === "cancelled" ||
+        sellerOrder.status === "delivered"
+      ) {
+        const error = new Error("This seller order cannot be updated.");
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const nextStatus = allowedActions[action];
+
+      const allowedTransitions = {
+        pending: ["accepted", "rejected"],
+        accepted: ["preparing", "rejected"],
+        preparing: ["ready_for_pickup"],
+        ready_for_pickup: ["dispatched"],
+        dispatched: [],
+      };
+
+      if (!allowedTransitions[sellerOrder.status]?.includes(nextStatus)) {
+        const error = new Error(
+          `Cannot change seller order from ${sellerOrder.status} to ${nextStatus}.`,
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+
+      // Only accept or prepare orders after payment is confirmed.
+      if (
+        ["accept", "prepare", "ready", "dispatch"].includes(action) &&
+        order.paymentStatus !== "paid"
+      ) {
+        const error = new Error(
+          "The customer payment must be confirmed first.",
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+
+      sellerOrder.status = nextStatus;
+
+      if (action === "accept") {
+        sellerOrder.acceptedAt = new Date();
+      }
+
+      if (action === "dispatch") {
+        sellerOrder.dispatchedAt = new Date();
+      }
+
+      // Update the overall customer order status.
+      const statuses = order.sellerOrders.map((item) => item.status);
+
+      if (
+        statuses.every(
+          (status) => status === "rejected" || status === "cancelled",
+        )
+      ) {
+        order.status = "cancelled";
+      } else if (statuses.every((status) => status === "delivered")) {
+        order.status = "completed";
+      } else if (
+        statuses.every(
+          (status) =>
+            status === "dispatched" ||
+            status === "delivered" ||
+            status === "rejected" ||
+            status === "cancelled",
+        )
+      ) {
+        order.status = "shipped";
+      } else if (
+        statuses.some(
+          (status) => status === "dispatched" || status === "delivered",
+        )
+      ) {
+        order.status = "partially_shipped";
+      } else {
+        order.status = "processing";
+      }
+
+      await order.save({ session });
+
+      updatedOrder = {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        orderStatus: order.status,
+        sellerOrder,
+      };
+    });
+
+    return res.status(200).json({
+      message: "Seller order updated successfully.",
+      order: updatedOrder,
+    });
+  } finally {
+    await session.endSession();
+  }
+});
+
+export {
+  createOrder,
+  getMyOrders,
+  getMyOrderById,
+  cancelMyOrder,
+  getSellerOrders,
+  getSellerOrderById,
+  updateSellerOrderStatus,
+};
