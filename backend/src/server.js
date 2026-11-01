@@ -16,6 +16,10 @@ import productRoutes from "./routes/productRoutes.js";
 
 import uploadRoutes from "./routes/uploadRoutes.js";
 
+import cartRoutes from "./routes/cartRoutes.js";
+
+import orderRoutes from "./routes/orderRoutes.js";
+
 const app = express();
 
 app.use(helmet());
@@ -48,6 +52,12 @@ app.use("/api/products", productRoutes);
 
 //upload Routes
 app.use("/api/uploads", uploadRoutes);
+
+//cart routes
+app.use("/api/cart", cartRoutes);
+
+//order routes
+app.use("/api/orders", orderRoutes);
 
 // Not found
 app.use((req, res) => {
