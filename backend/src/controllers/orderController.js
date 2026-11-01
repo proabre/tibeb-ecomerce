@@ -208,4 +208,44 @@ const createOrder = asyncHandler(async (req, res) => {
   }
 });
 
-export { createOrder };
+const getMyOrders = asyncHandler(async (req, res) => {
+  const orders = await Order.find({
+    customerId: req.user._id,
+  })
+    .sort({ createdAt: -1 })
+    .select(
+      "orderNumber sellerOrders shippingAddress currency subtotalCents deliveryFeeCents discountCents totalCents paymentStatus status createdAt",
+    );
+
+  return res.status(200).json({
+    count: orders.length,
+    orders,
+  });
+});
+
+const getMyOrderById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({
+      message: "Invalid order ID.",
+    });
+  }
+
+  const order = await Order.findOne({
+    _id: id,
+    customerId: req.user._id,
+  });
+
+  if (!order) {
+    return res.status(404).json({
+      message: "Order not found.",
+    });
+  }
+
+  return res.status(200).json({
+    order,
+  });
+});
+
+export { createOrder, getMyOrders, getMyOrderById };
