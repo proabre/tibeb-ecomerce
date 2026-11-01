@@ -20,6 +20,8 @@ import cartRoutes from "./routes/cartRoutes.js";
 
 import orderRoutes from "./routes/orderRoutes.js";
 
+import paymentRoutes from "./routes/paymentRoutes.js";
+
 const app = express();
 
 app.use(helmet());
@@ -58,6 +60,9 @@ app.use("/api/cart", cartRoutes);
 
 //order routes
 app.use("/api/orders", orderRoutes);
+
+//payment routes
+app.use("/api/payments", paymentRoutes);
 
 // Not found
 app.use((req, res) => {
