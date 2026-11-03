@@ -196,11 +196,6 @@ const createOrder = asyncHandler(async (req, res) => {
           },
         ],
       });
-      order.statusHistory.push({
-        status: order.status,
-        note: `Seller order status changed to ${nextStatus}.`,
-        changedAt: new Date(),
-      });
 
       await order.save({ session });
 

@@ -14,8 +14,9 @@ import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.use(protect, authorize("customer"));
+router.use(protect);
 
+// Seller routes
 router.get("/seller/my-orders", authorize("seller"), getSellerOrders);
 router.get("/seller/my-orders/:id", authorize("seller"), getSellerOrderById);
 router.patch(
@@ -24,6 +25,7 @@ router.patch(
   updateSellerOrderStatus,
 );
 
+// Customer routes
 router.post("/", authorize("customer"), createOrder);
 router.get("/", authorize("customer"), getMyOrders);
 router.patch("/:id/cancel", authorize("customer"), cancelMyOrder);
