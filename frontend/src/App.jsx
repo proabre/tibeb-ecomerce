@@ -24,6 +24,7 @@ import {
   fetchPublicProducts,
   getCart,
   getCurrentUser,
+  getOAuthUrl,
   initiatePayment,
   loginUser,
   logoutUser,
@@ -100,16 +101,23 @@ function normalizeCartItem(item) {
 
 function App() {
   const { t } = useLanguage();
+  const [oauthResult] = useState(
+    () => new URL(window.location.href).searchParams.get('oauth'),
+  );
   const [products, setProducts] = useState(productCatalog);
   const [user, setUser] = useState(null);
   const [authMode, setAuthMode] = useState('login');
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(oauthResult === 'error');
   const [authForm, setAuthForm] = useState({
     name: '',
     identifier: '',
     password: '',
   });
-  const [authError, setAuthError] = useState('');
+  const [authError, setAuthError] = useState(
+    oauthResult === 'error'
+      ? t('Social sign-in failed. Please try again or use your email and password.')
+      : '',
+  );
   const [logoutError, setLogoutError] = useState('');
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -168,6 +176,43 @@ function App() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!oauthResult) return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete('oauth');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+
+    if (oauthResult !== 'success') return;
+
+    let isMounted = true;
+    async function loadOAuthSession() {
+      try {
+        const profile = await getCurrentUser();
+        if (!isMounted) return;
+        setUser(profile);
+        setAuthError('');
+        setIsAuthOpen(false);
+        try {
+          await refreshCart();
+        } catch (error) {
+          if (isMounted) {
+            setCartError(error?.response?.data?.message || t('Could not load your saved cart.'));
+          }
+        }
+      } catch {
+        if (!isMounted) return;
+        setAuthError(t('Social sign-in could not be completed. Please try again.'));
+        setIsAuthOpen(true);
+      }
+    }
+
+    loadOAuthSession();
+    return () => {
+      isMounted = false;
+    };
+  }, [oauthResult, t]);
 
   const addToCart = async (product, variant) => {
     if (!user) {
@@ -417,6 +462,27 @@ function App() {
             </div>
 
             <form className="auth-form" onSubmit={handleAuthSubmit}>
+              <div className="social-auth-options">
+                <button
+                  type="button"
+                  className="social-auth-button"
+                  onClick={() => window.location.assign(getOAuthUrl('google'))}
+                  disabled={isAuthSubmitting}
+                >
+                  <span className="google-mark" aria-hidden="true">G</span>
+                  {t('Continue with Google')}
+                </button>
+                <button
+                  type="button"
+                  className="social-auth-button"
+                  onClick={() => window.location.assign(getOAuthUrl('facebook'))}
+                  disabled={isAuthSubmitting}
+                >
+                  <span className="facebook-mark" aria-hidden="true">f</span>
+                  {t('Continue with Facebook')}
+                </button>
+              </div>
+              <div className="auth-divider"><span>{t('Or use email')}</span></div>
               {authMode === 'register' ? (
                 <label>
                   <span>{t('Name')}</span>

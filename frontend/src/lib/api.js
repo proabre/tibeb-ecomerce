@@ -5,6 +5,17 @@ const api = axios.create({
   withCredentials: true,
 });
 
+export function getOAuthUrl(provider) {
+  if (!['google', 'facebook'].includes(provider)) {
+    throw new Error('Unsupported sign-in provider');
+  }
+
+  return new URL(
+    `/api/auth/${provider}`,
+    api.defaults.baseURL || window.location.origin,
+  ).toString();
+}
+
 export async function fetchPublicProducts() {
   try {
     const { data } = await api.get('/api/products', {

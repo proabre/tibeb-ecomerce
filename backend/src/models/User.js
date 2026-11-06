@@ -29,7 +29,20 @@ const userSchema = new mongoose.Schema(
 
     passwordHash: {
       type: String,
-      required: true,
+      select: false,
+    },
+
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      select: false,
+    },
+
+    facebookId: {
+      type: String,
+      unique: true,
+      sparse: true,
       select: false,
     },
 
@@ -83,6 +96,13 @@ userSchema.pre("validate", function () {
     this.invalidate(
       "email",
       "Provide at least an email address or phone number.",
+    );
+  }
+
+  if (!this.passwordHash && !this.googleId && !this.facebookId) {
+    this.invalidate(
+      "passwordHash",
+      "An account must have a password or a linked sign-in provider.",
     );
   }
 

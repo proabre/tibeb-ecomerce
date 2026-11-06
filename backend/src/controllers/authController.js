@@ -142,7 +142,8 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
 
-  const passwordMatches = await bcrypt.compare(password, user.passwordHash);
+  const passwordMatches =
+    user.passwordHash && (await bcrypt.compare(password, user.passwordHash));
 
   if (!passwordMatches) {
     return res.status(401).json({
