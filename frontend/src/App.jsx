@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
 import { useLanguage } from './useLanguage.js';
@@ -118,6 +119,7 @@ function App() {
       ? t('Social sign-in failed. Please try again or use your email and password.')
       : '',
   );
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [logoutError, setLogoutError] = useState('');
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -527,16 +529,31 @@ function App() {
 
               <label>
                 <span>{t('Password')}</span>
-                <input
-                  type="password"
-                  value={authForm.password}
-                  onChange={(event) => setAuthForm((current) => ({ ...current, password: event.target.value }))}
-                  placeholder={t('Password')}
-                  autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
-                  minLength={authMode === 'register' ? 8 : 1}
-                  maxLength={72}
-                  required
-                />
+                <span className="password-input-wrap">
+                  <input
+                    type={isPasswordVisible ? 'text' : 'password'}
+                    value={authForm.password}
+                    onChange={(event) => setAuthForm((current) => ({ ...current, password: event.target.value }))}
+                    placeholder={t('Password')}
+                    autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+                    minLength={authMode === 'register' ? 8 : 1}
+                    maxLength={72}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="password-visibility-button"
+                    onClick={() => setIsPasswordVisible((visible) => !visible)}
+                    aria-label={t(isPasswordVisible ? 'Hide password' : 'Show password')}
+                    aria-pressed={isPasswordVisible}
+                  >
+                    {isPasswordVisible ? (
+                      <EyeOff size={19} aria-hidden="true" />
+                    ) : (
+                      <Eye size={19} aria-hidden="true" />
+                    )}
+                  </button>
+                </span>
               </label>
 
               {authError ? <div className="auth-error">{authError}</div> : null}
