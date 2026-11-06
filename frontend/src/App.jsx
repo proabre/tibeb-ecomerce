@@ -431,7 +431,20 @@ function App() {
             />
             <Route path="/orders" element={<Order order={latestOrder ?? sampleOrder} />} />
             <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/shop" element={<ShopDashboards />} />
+            <Route
+              path="/shop"
+              element={
+                <ShopDashboards
+                  user={user}
+                  categories={localizedCategoryLabels}
+                  onAuthOpen={(mode) => {
+                    setAuthMode(mode);
+                    setAuthError('');
+                    setIsAuthOpen(true);
+                  }}
+                />
+              }
+            />
           </Routes>
         </main>
         <Footer />

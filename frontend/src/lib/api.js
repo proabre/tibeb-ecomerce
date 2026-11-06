@@ -71,6 +71,35 @@ export async function removeCartItem(itemId) {
   return data;
 }
 
+export async function uploadProductImages(files) {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('images', file));
+  const { data } = await api.post('/api/uploads/products', formData);
+  return data.images.map((image) => image.url);
+}
+
+export async function createSellerProduct(payload) {
+  const { data } = await api.post('/api/products', payload);
+  return data.product;
+}
+
+export async function getSellerProducts() {
+  const { data } = await api.get('/api/products/my-products');
+  return data.products ?? [];
+}
+
+export async function getSellerOrders() {
+  const { data } = await api.get('/api/orders/seller/my-orders');
+  return data.orders ?? [];
+}
+
+export async function updateSellerOrderStatus(orderId, action) {
+  const { data } = await api.patch(`/api/orders/seller/my-orders/${orderId}/status`, {
+    action,
+  });
+  return data;
+}
+
 export async function createOrder(payload) {
   const { data } = await api.post('/api/orders', payload);
   return data;
