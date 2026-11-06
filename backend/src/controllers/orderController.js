@@ -7,6 +7,41 @@ import Shop from "../models/Shop.js";
 import Order from "../models/Order.js";
 
 import { asyncHandler } from "../../utils/asyncHandler.js";
+import {
+  calculateCommissionCents,
+  DEFAULT_COMMISSION_RATE_BPS,
+} from "../utils/commission.js";
+import {
+  findSellerOrderForShop,
+  sellerOrderShopFilter,
+} from "../utils/sellerOrders.js";
+
+const restoreOrderStock = async (order, session) => {
+  for (const sellerOrder of order.sellerOrders) {
+    for (const item of sellerOrder.items) {
+      const stockUpdate = await Product.updateOne(
+        {
+          _id: item.productId,
+          "variants.sku": item.variantSku,
+        },
+        {
+          $inc: {
+            "variants.$.stock": item.quantity,
+          },
+        },
+        { session },
+      );
+
+      if (stockUpdate.modifiedCount !== 1) {
+        const error = new Error(
+          `Could not restore stock for ${item.productTitle}.`,
+        );
+        error.statusCode = 409;
+        throw error;
+      }
+    }
+  }
+};
 
 const createOrder = asyncHandler(async (req, res) => {
   const { shippingAddress, customerNote = "" } = req.body;
@@ -141,6 +176,8 @@ const createOrder = asyncHandler(async (req, res) => {
             items: [],
             subtotalCents: 0,
             deliveryFeeCents: 0,
+            commissionRateBps:
+              shop.commissionRateBps ?? DEFAULT_COMMISSION_RATE_BPS,
           });
         }
 
@@ -167,6 +204,23 @@ const createOrder = asyncHandler(async (req, res) => {
       const discountCents = 0;
 
       const totalCents = subtotalCents + deliveryFeeCents - discountCents;
+      let platformCommissionCents = 0;
+
+      for (const sellerOrder of sellerOrderMap.values()) {
+        sellerOrder.commissionCents = calculateCommissionCents(
+          sellerOrder.subtotalCents,
+          sellerOrder.commissionRateBps,
+        );
+        sellerOrder.sellerEarningsCents =
+          sellerOrder.subtotalCents - sellerOrder.commissionCents;
+        platformCommissionCents += sellerOrder.commissionCents;
+
+        if (!Number.isSafeInteger(platformCommissionCents)) {
+          const error = new Error("Order commission is too large.");
+          error.statusCode = 400;
+          throw error;
+        }
+      }
 
       // 8. Generate unique order number
       const orderNumber = `TIB-${Date.now()}-${crypto
@@ -185,12 +239,14 @@ const createOrder = asyncHandler(async (req, res) => {
         deliveryFeeCents,
         discountCents,
         totalCents,
+        platformCommissionCents,
         paymentStatus: "pending",
         status: "pending_payment",
         customerNote: customerNote.trim(),
         statusHistory: [
           {
             status: "pending_payment",
+            actorId: req.user._id,
             note: "Order placed successfully.",
             changedAt: new Date(),
           },
@@ -221,7 +277,7 @@ const getMyOrders = asyncHandler(async (req, res) => {
   })
     .sort({ createdAt: -1 })
     .select(
-      "orderNumber sellerOrders shippingAddress currency subtotalCents deliveryFeeCents discountCents totalCents paymentStatus status createdAt",
+      "orderNumber sellerOrders shippingAddress currency subtotalCents deliveryFeeCents discountCents totalCents platformCommissionCents paymentStatus status createdAt",
     );
 
   return res.status(200).json({
@@ -268,6 +324,10 @@ const getMyOrderById = asyncHandler(async (req, res) => {
       status: sellerOrder.status,
       subtotalCents: sellerOrder.subtotalCents,
       deliveryFeeCents: sellerOrder.deliveryFeeCents,
+      commissionRateBps: sellerOrder.commissionRateBps,
+      commissionCents: sellerOrder.commissionCents,
+      sellerEarningsCents: sellerOrder.sellerEarningsCents,
+      settlementStatus: sellerOrder.settlementStatus,
       acceptedAt: sellerOrder.acceptedAt,
       dispatchedAt: sellerOrder.dispatchedAt,
       deliveredAt: sellerOrder.deliveredAt,
@@ -286,11 +346,13 @@ const getMyOrderById = asyncHandler(async (req, res) => {
       deliveryFeeCents: order.deliveryFeeCents,
       discountCents: order.discountCents,
       totalCents: order.totalCents,
+      platformCommissionCents: order.platformCommissionCents,
       shippingAddress: order.shippingAddress,
       customerNote: order.customerNote,
       createdAt: order.createdAt,
       paidAt: order.paidAt,
       cancelledAt: order.cancelledAt,
+      statusHistory: order.statusHistory,
       sellerOrders,
     },
   });
@@ -328,55 +390,27 @@ const cancelMyOrder = asyncHandler(async (req, res) => {
         throw error;
       }
 
-      // Do not restore stock twice.
-      if (order.status === "cancelled") {
-        const error = new Error("Order is already cancelled.");
-        error.statusCode = 400;
+      if (!["pending", "failed"].includes(order.paymentStatus)) {
+        const error = new Error(
+          "Orders with a payment in progress or completed require payment resolution before cancellation.",
+        );
+        error.statusCode = 409;
         throw error;
       }
 
-      // Restore stock for every purchased variant.
+      await restoreOrderStock(order, session);
       for (const sellerOrder of order.sellerOrders) {
-        for (const item of sellerOrder.items) {
-          const product = await Product.findOne({
-            _id: item.productId,
-          }).session(session);
-
-          if (!product) {
-            const error = new Error(
-              `Product ${item.productTitle} could not be found.`,
-            );
-            error.statusCode = 409;
-            throw error;
-          }
-
-          const stockUpdate = await Product.updateOne(
-            {
-              _id: item.productId,
-              "variants.sku": item.variantSku,
-            },
-            {
-              $inc: {
-                "variants.$.stock": item.quantity,
-              },
-            },
-            { session },
-          );
-
-          if (stockUpdate.modifiedCount !== 1) {
-            const error = new Error(
-              `Could not restore stock for ${item.productTitle}.`,
-            );
-            error.statusCode = 409;
-            throw error;
-          }
-        }
-
         sellerOrder.status = "cancelled";
       }
 
       order.status = "cancelled";
       order.cancelledAt = new Date();
+      order.statusHistory.push({
+        status: "cancelled",
+        actorId: req.user._id,
+        note: "Customer cancelled the unpaid order.",
+        changedAt: order.cancelledAt,
+      });
 
       await order.save({ session });
 
@@ -405,27 +439,29 @@ const getSellerOrders = asyncHandler(async (req, res) => {
     });
   }
 
-  const orders = await Order.find({
-    "sellerOrders.shopId": shop._id,
-  }).sort({ createdAt: -1 });
+  const orders = await Order.find(sellerOrderShopFilter(shop._id)).sort({
+    createdAt: -1,
+  });
 
   // Return only this seller's part of each customer order.
-  const sellerOrders = orders.map((order) => {
-    const sellerOrder = order.sellerOrders.find(
-      (item) => item.shopId.toString() === shop._id.toString(),
-    );
+  const sellerOrders = orders.flatMap((order) => {
+    const sellerOrder = findSellerOrderForShop(order.sellerOrders, shop._id);
 
-    return {
-      orderId: order._id,
-      orderNumber: order.orderNumber,
-      customerId: order.customerId,
-      shippingAddress: order.shippingAddress,
-      currency: order.currency,
-      paymentStatus: order.paymentStatus,
-      orderStatus: order.status,
-      sellerOrder,
-      createdAt: order.createdAt,
-    };
+    return sellerOrder
+      ? [
+          {
+            orderId: order._id,
+            orderNumber: order.orderNumber,
+            customerId: order.customerId,
+            shippingAddress: order.shippingAddress,
+            currency: order.currency,
+            paymentStatus: order.paymentStatus,
+            orderStatus: order.status,
+            sellerOrder,
+            createdAt: order.createdAt,
+          },
+        ]
+      : [];
   });
 
   return res.status(200).json({
@@ -457,7 +493,7 @@ const getSellerOrderById = asyncHandler(async (req, res) => {
 
   const order = await Order.findOne({
     _id: id,
-    "sellerOrders.shopId": shop._id,
+    ...sellerOrderShopFilter(shop._id),
   });
 
   if (!order) {
@@ -466,9 +502,7 @@ const getSellerOrderById = asyncHandler(async (req, res) => {
     });
   }
 
-  const sellerOrder = order.sellerOrders.find(
-    (item) => item.shopId.toString() === shop._id.toString(),
-  );
+  const sellerOrder = findSellerOrderForShop(order.sellerOrders, shop._id);
 
   return res.status(200).json({
     orderId: order._id,
@@ -525,7 +559,7 @@ const updateSellerOrderStatus = asyncHandler(async (req, res) => {
     await session.withTransaction(async () => {
       const order = await Order.findOne({
         _id: id,
-        "sellerOrders.shopId": shop._id,
+        ...sellerOrderShopFilter(shop._id),
       }).session(session);
 
       if (!order) {
@@ -534,9 +568,7 @@ const updateSellerOrderStatus = asyncHandler(async (req, res) => {
         throw error;
       }
 
-      const sellerOrder = order.sellerOrders.find(
-        (item) => item.shopId.toString() === shop._id.toString(),
-      );
+      const sellerOrder = findSellerOrderForShop(order.sellerOrders, shop._id);
 
       if (
         sellerOrder.status === "rejected" ||
@@ -569,6 +601,46 @@ const updateSellerOrderStatus = asyncHandler(async (req, res) => {
         throw error;
       }
 
+      if (action === "reject") {
+        if (!["pending", "failed"].includes(order.paymentStatus)) {
+          const error = new Error(
+            "A paid or in-progress order cannot be rejected until its payment can be refunded or resolved.",
+          );
+          error.statusCode = 409;
+          throw error;
+        }
+
+        await restoreOrderStock(order, session);
+
+        for (const item of order.sellerOrders) {
+          item.status =
+            item._id.toString() === sellerOrder._id.toString()
+              ? "rejected"
+              : "cancelled";
+        }
+
+        order.status = "cancelled";
+        order.cancelledAt = new Date();
+        order.statusHistory.push({
+          status: "cancelled",
+          actorId: req.user._id,
+          sellerOrderId: sellerOrder._id,
+          sellerStatus: "rejected",
+          note: `Shop ${shop.name} rejected the unpaid order; checkout was cancelled.`,
+          changedAt: order.cancelledAt,
+        });
+
+        await order.save({ session });
+
+        updatedOrder = {
+          orderId: order._id,
+          orderNumber: order.orderNumber,
+          orderStatus: order.status,
+          sellerOrder,
+        };
+        return;
+      }
+
       // Only accept or prepare orders after payment is confirmed.
       if (
         ["accept", "prepare", "ready", "dispatch", "deliver"].includes(
@@ -597,7 +669,6 @@ const updateSellerOrderStatus = asyncHandler(async (req, res) => {
         sellerOrder.deliveredAt = new Date();
       }
 
-      // Update the overall customer order status.
       const statuses = order.sellerOrders.map((item) => item.status);
 
       if (
@@ -627,6 +698,15 @@ const updateSellerOrderStatus = asyncHandler(async (req, res) => {
       } else {
         order.status = "processing";
       }
+
+      order.statusHistory.push({
+        status: order.status,
+        actorId: req.user._id,
+        sellerOrderId: sellerOrder._id,
+        sellerStatus: sellerOrder.status,
+        note: `${shop.name} updated its order to ${sellerOrder.status.replaceAll("_", " ")}.`,
+        changedAt: new Date(),
+      });
 
       await order.save({ session });
 

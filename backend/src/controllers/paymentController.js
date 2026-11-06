@@ -4,8 +4,19 @@ import Payment from "../models/Payment.js";
 import Order from "../models/Order.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 
+const isDevelopmentPaymentEnabled = () =>
+  process.env.NODE_ENV !== "production" &&
+  process.env.ENABLE_DEV_PAYMENTS === "true";
+
 // Customer initiates a payment for an existing order.
 const initiatePayment = asyncHandler(async (req, res) => {
+  if (!isDevelopmentPaymentEnabled()) {
+    return res.status(503).json({
+      message:
+        "Payment checkout is not configured. Telebirr merchant integration is required.",
+    });
+  }
+
   const { orderId } = req.params;
   const idempotencyKey = req.get("Idempotency-Key");
 
@@ -91,6 +102,12 @@ const initiatePayment = asyncHandler(async (req, res) => {
   });
 
   order.paymentStatus = "processing";
+  order.statusHistory.push({
+    status: order.status,
+    actorId: req.user._id,
+    note: "Payment initiated.",
+    changedAt: new Date(),
+  });
   await order.save();
 
   return res.status(201).json({
@@ -103,7 +120,7 @@ const initiatePayment = asyncHandler(async (req, res) => {
 
 // Development-only endpoint. Never use this as a real payment confirmation.
 const confirmDevelopmentPayment = asyncHandler(async (req, res) => {
-  if (process.env.NODE_ENV === "production") {
+  if (!isDevelopmentPaymentEnabled()) {
     return res.status(404).json({ message: "Route not found." });
   }
 
@@ -178,6 +195,7 @@ const confirmDevelopmentPayment = asyncHandler(async (req, res) => {
 
         order.statusHistory.push({
           status: "confirmed",
+          actorId: req.user._id,
           note: "Payment confirmed successfully.",
           changedAt: now,
         });
@@ -189,6 +207,12 @@ const confirmDevelopmentPayment = asyncHandler(async (req, res) => {
         payment.failureMessage = "Simulated development payment failure.";
 
         order.paymentStatus = "failed";
+        order.statusHistory.push({
+          status: order.status,
+          actorId: req.user._id,
+          note: "Payment failed.",
+          changedAt: now,
+        });
       }
 
       await payment.save({ session });

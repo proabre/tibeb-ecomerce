@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import './App.css';
 
 import Navbar from './Components/Navbar.jsx';
+import Footer from './Components/Footer.jsx';
 import Home from './pages/Home.jsx';
 import Products from './pages/Products.jsx';
 import ProductDetail from './pages/ProductDetail.jsx';
@@ -10,17 +11,24 @@ import Cart from './pages/Cart.jsx';
 import Order from './pages/Order.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import ShopDashboards from './pages/ShopDashboards.jsx';
-import { productCatalog, categoryLabels } from './data/catalog.js';
+import {
+  fallbackProductImage,
+  productCatalog,
+  categoryLabels,
+} from './data/catalog.js';
 import {
   addCartItem,
   confirmDevelopmentPayment,
   createOrder,
   fetchPublicProducts,
+  getCart,
   getCurrentUser,
   initiatePayment,
   loginUser,
   logoutUser,
+  removeCartItem,
   registerUser,
+  updateCartItem,
 } from './lib/api.js';
 
 const sampleOrder = {
@@ -47,19 +55,19 @@ function normalizeProduct(product) {
     slug: product.slug || product.name?.toLowerCase().replace(/\s+/g, '-') || 'product',
     name: product.title || product.name,
     category: product.category,
+    orderable: true,
     price: firstVariant ? formatPrice(firstVariant.priceCents ?? firstVariant.price ?? 0) : Number(product.price ?? 0),
     material: product.material || 'Traditional fabric',
     craftsmanship: product.craftsmanship || 'handmade',
     description: product.description || 'Authentic Ethiopian traditional clothing.',
-    images: product.images?.length ? product.images : [
-      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=80',
-    ],
+    images: product.images?.length ? product.images : [fallbackProductImage],
     shop: product.shopId?.name || product.shop || 'Tibeb Market',
     rating: product.rating ?? 4.8,
     stock: product.stock ?? firstVariant?.stock ?? 1,
     variants: variants.length
       ? variants.map((variant) => ({
           id: variant._id || variant.sku || `${product._id || product.id}-${variant.size || variant.color || 'variant'}`,
+          sku: variant.sku,
           label: variant.size || variant.color || variant.sku || 'Default',
           price: formatPrice(variant.priceCents ?? variant.price ?? 0),
           inStock: (variant.stock ?? 1) > 0,
@@ -70,6 +78,22 @@ function normalizeProduct(product) {
           price: Number(product.price ?? 0),
           inStock: true,
         }],
+  };
+}
+
+function normalizeCartItem(item) {
+  const product = item.product;
+  const variant = product.variants?.find((entry) => entry.sku === item.variantSku);
+
+  return {
+    productId: product._id,
+    variantId: item.variantSku,
+    cartItemId: item._id,
+    title: product.title,
+    image: product.images?.[0] || '',
+    variantLabel: [variant?.size, variant?.color].filter(Boolean).join(' · ') || item.variantSku,
+    price: formatPrice(item.unitPriceCents),
+    quantity: item.quantity,
   };
 }
 
@@ -84,34 +108,56 @@ function App() {
     password: '',
   });
   const [authError, setAuthError] = useState('');
+  const [logoutError, setLogoutError] = useState('');
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [cartError, setCartError] = useState('');
   const [latestOrder, setLatestOrder] = useState(null);
-  const [cart, setCart] = useState(() => {
-    try {
-      const value = window.localStorage.getItem('tibeb-cart');
-      return value ? JSON.parse(value) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [cart, setCart] = useState([]);
+
+  const refreshCart = async () => {
+    const response = await getCart();
+    setCart(response.items.map(normalizeCartItem));
+  };
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadProfileAndProducts() {
+      let profile = null;
       try {
-        const profile = await getCurrentUser();
+        profile = await getCurrentUser();
         if (isMounted && profile) {
           setUser(profile);
         }
       } catch {
         if (isMounted) {
           setUser(null);
+          setCart([]);
+        }
+      }
+
+      if (isMounted && profile) {
+        try {
+          const response = await getCart();
+          if (isMounted) {
+            setCart(response.items.map(normalizeCartItem));
+          }
+        } catch (error) {
+          if (isMounted) {
+            setCartError(error?.response?.data?.message || 'Could not load your saved cart.');
+          }
         }
       }
 
       const liveProducts = await fetchPublicProducts();
       if (!isMounted || !liveProducts.length) return;
-      setProducts(liveProducts.map(normalizeProduct));
+      const liveCatalog = liveProducts.map(normalizeProduct);
+      const liveSlugs = new Set(liveCatalog.map((product) => product.slug));
+      setProducts([
+        ...liveCatalog,
+        ...productCatalog.filter((product) => !liveSlugs.has(product.slug)),
+      ]);
     }
 
     loadProfileAndProducts();
@@ -121,10 +167,6 @@ function App() {
     };
   }, []);
 
-  useEffect(() => {
-    window.localStorage.setItem('tibeb-cart', JSON.stringify(cart));
-  }, [cart]);
-
   const addToCart = async (product, variant) => {
     if (!user) {
       setAuthMode('login');
@@ -133,58 +175,54 @@ function App() {
       return;
     }
 
-    try {
-      const backendVariant = variant?.sku || variant?.label || variant?.id || 'default';
-      await addCartItem(product.id, backendVariant, 1);
-    } catch {
-      setCart((current) => {
-        const existing = current.find((item) => item.productId === product.id && item.variantId === variant.id);
-
-        if (existing) {
-          return current.map((item) =>
-            item.productId === product.id && item.variantId === variant.id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item,
-          );
-        }
-
-        return [
-          ...current,
-          {
-            productId: product.id,
-            variantId: variant.id,
-            title: product.name,
-            image: product.images[0],
-            variantLabel: variant.label,
-            price: variant.price,
-            quantity: 1,
-          },
-        ];
-      });
-    }
-  };
-
-  const updateQuantity = (productId, variantId, nextQuantity) => {
-    if (nextQuantity <= 0) {
-      removeFromCart(productId, variantId);
+    if (!product.orderable) {
+      setCartError('This catalog preview item is not yet listed by a seller and cannot be ordered.');
       return;
     }
 
-    setCart((current) =>
-      current.map((item) =>
-        item.productId === productId && item.variantId === variantId
-          ? { ...item, quantity: nextQuantity }
-          : item,
-      ),
-    );
+    if (!variant.sku) {
+      setCartError('This product is missing a valid variant SKU and cannot be added to your cart.');
+      return;
+    }
+
+    setCartError('');
+    try {
+      await addCartItem(product.id, variant.sku, 1);
+      await refreshCart();
+    } catch (error) {
+      setCartError(error?.response?.data?.message || 'Could not add this product to your cart.');
+    }
   };
 
-  const removeFromCart = (productId, variantId) => {
-    setCart((current) =>
-      current.filter(
-        (item) => !(item.productId === productId && item.variantId === variantId),
-      ),
-    );
+  const updateQuantity = async (productId, variantId, nextQuantity) => {
+    if (nextQuantity <= 0) {
+      await removeFromCart(productId, variantId);
+      return;
+    }
+
+    const item = cart.find((entry) => entry.productId === productId && entry.variantId === variantId);
+    if (!item) return;
+
+    setCartError('');
+    try {
+      await updateCartItem(item.cartItemId, nextQuantity);
+      await refreshCart();
+    } catch (error) {
+      setCartError(error?.response?.data?.message || 'Could not update your cart.');
+    }
+  };
+
+  const removeFromCart = async (productId, variantId) => {
+    const item = cart.find((entry) => entry.productId === productId && entry.variantId === variantId);
+    if (!item) return;
+
+    setCartError('');
+    try {
+      await removeCartItem(item.cartItemId);
+      await refreshCart();
+    } catch (error) {
+      setCartError(error?.response?.data?.message || 'Could not remove this item from your cart.');
+    }
   };
 
   const cartCount = useMemo(
@@ -199,6 +237,8 @@ function App() {
 
   const handleAuthSubmit = async (event) => {
     event.preventDefault();
+    setAuthError('');
+    setIsAuthSubmitting(true);
 
     try {
       const payload =
@@ -221,22 +261,43 @@ function App() {
 
       const nextUser = response.user;
       setUser(nextUser);
+      setLogoutError('');
+      setCart([]);
+      try {
+        await refreshCart();
+      } catch (error) {
+        setCartError(error?.response?.data?.message || 'Could not load your saved cart.');
+      }
       setIsAuthOpen(false);
       setAuthError('');
       setAuthForm({ name: '', identifier: '', password: '' });
     } catch (error) {
-      setAuthError(error?.response?.data?.message || 'Authentication failed.');
+      const validationErrors = error?.response?.data?.errors;
+      setAuthError(
+        validationErrors?.map(({ message }) => message).join(' ') ||
+          error?.response?.data?.message ||
+          'Authentication failed. Please try again.',
+      );
+    } finally {
+      setIsAuthSubmitting(false);
     }
   };
 
   const handleLogout = async () => {
+    setIsLoggingOut(true);
+    setLogoutError('');
+
     try {
       await logoutUser();
-    } catch {
-      // Ignore backend logout failures and still clear the local session.
+      setUser(null);
+      setCart([]);
+    } catch (error) {
+      setLogoutError(
+        error?.response?.data?.message || 'Could not sign out. Please try again.',
+      );
+    } finally {
+      setIsLoggingOut(false);
     }
-
-    setUser(null);
   };
 
   const handleCheckout = async (shippingAddress, customerNote = '') => {
@@ -248,6 +309,7 @@ function App() {
     }
 
     const { order } = await createOrder({ shippingAddress, customerNote });
+    setCart([]);
     const payment = await initiatePayment(order._id, `tibeb-${Date.now()}`);
     const confirmation = await confirmDevelopmentPayment(payment.payment._id, 'success');
 
@@ -273,24 +335,25 @@ function App() {
   return (
     <BrowserRouter>
       <div className="app-shell">
-        <Navbar cartCount={cartCount} />
-
-        <div className="user-bar">
-          {user ? (
-            <>
-              <span>Welcome, {user.name}</span>
-              <button type="button" className="secondary-button" onClick={handleLogout}>
-                Sign out
-              </button>
-            </>
-          ) : (
-            <button type="button" className="primary-button compact" onClick={() => setIsAuthOpen(true)}>
-              Sign in
-            </button>
-          )}
-        </div>
+        <Navbar
+          cartCount={cartCount}
+          user={user}
+          onAuthOpen={(mode) => {
+            setAuthMode(mode);
+            setAuthError('');
+            setIsAuthOpen(true);
+          }}
+          onLogout={handleLogout}
+          isLoggingOut={isLoggingOut}
+          logoutError={logoutError}
+        />
 
         <main className="page-shell">
+          {cartError ? (
+            <div className="cart-feedback" role="alert">
+              {cartError}
+            </div>
+          ) : null}
           <Routes>
             <Route
               path="/"
@@ -321,14 +384,29 @@ function App() {
             <Route path="/shop" element={<ShopDashboards />} />
           </Routes>
         </main>
+        <Footer />
       </div>
 
       {isAuthOpen ? (
-        <div className="modal-backdrop" onClick={() => setIsAuthOpen(false)}>
-          <div className="auth-modal" onClick={(event) => event.stopPropagation()}>
+        <div
+          className="modal-backdrop"
+          onClick={() => !isAuthSubmitting && setIsAuthOpen(false)}
+        >
+          <div
+            className="auth-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="auth-title"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="auth-header">
-              <h3>{authMode === 'login' ? 'Welcome back' : 'Create account'}</h3>
-              <button type="button" className="text-button" onClick={() => setIsAuthOpen(false)}>
+              <h3 id="auth-title">{authMode === 'login' ? 'Welcome back' : 'Create account'}</h3>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setIsAuthOpen(false)}
+                disabled={isAuthSubmitting}
+              >
                 Close
               </button>
             </div>
@@ -342,6 +420,9 @@ function App() {
                     value={authForm.name}
                     onChange={(event) => setAuthForm((current) => ({ ...current, name: event.target.value }))}
                     placeholder="Your full name"
+                    autoComplete="name"
+                    minLength={2}
+                    maxLength={100}
                     required
                   />
                 </label>
@@ -354,6 +435,8 @@ function App() {
                   value={authForm.identifier}
                   onChange={(event) => setAuthForm((current) => ({ ...current, identifier: event.target.value }))}
                   placeholder="you@example.com or 0911..."
+                  autoComplete={authMode === 'login' ? 'username' : 'email'}
+                  maxLength={254}
                   required
                 />
               </label>
@@ -365,14 +448,25 @@ function App() {
                   value={authForm.password}
                   onChange={(event) => setAuthForm((current) => ({ ...current, password: event.target.value }))}
                   placeholder="Password"
+                  autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+                  minLength={authMode === 'register' ? 8 : 1}
+                  maxLength={72}
                   required
                 />
               </label>
 
               {authError ? <div className="auth-error">{authError}</div> : null}
 
-              <button type="submit" className="primary-button full-width">
-                {authMode === 'login' ? 'Sign in' : 'Create account'}
+              <button
+                type="submit"
+                className="primary-button full-width"
+                disabled={isAuthSubmitting}
+              >
+                {isAuthSubmitting
+                  ? 'Please wait...'
+                  : authMode === 'login'
+                    ? 'Sign in'
+                    : 'Create account'}
               </button>
             </form>
 
@@ -383,6 +477,7 @@ function App() {
                 setAuthMode((current) => (current === 'login' ? 'register' : 'login'));
                 setAuthError('');
               }}
+              disabled={isAuthSubmitting}
             >
               {authMode === 'login' ? 'Need an account? Register' : 'Already have an account? Sign in'}
             </button>

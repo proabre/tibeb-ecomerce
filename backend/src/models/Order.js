@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { DEFAULT_COMMISSION_RATE_BPS } from "../utils/commission.js";
 
 const shippingAddressSchema = new mongoose.Schema(
   {
@@ -146,6 +147,38 @@ const sellerOrderSchema = new mongoose.Schema(
       default: 0,
     },
 
+    commissionRateBps: {
+      type: Number,
+      required: true,
+      min: 0,
+      max: 10000,
+      validate: Number.isSafeInteger,
+      default: DEFAULT_COMMISSION_RATE_BPS,
+    },
+
+    commissionCents: {
+      type: Number,
+      required: true,
+      min: 0,
+      validate: Number.isSafeInteger,
+      default: 0,
+    },
+
+    sellerEarningsCents: {
+      type: Number,
+      required: true,
+      min: 0,
+      validate: Number.isSafeInteger,
+      default: 0,
+    },
+
+    settlementStatus: {
+      type: String,
+      enum: ["pending", "available", "reserved", "paid"],
+      default: "pending",
+      index: true,
+    },
+
     status: {
       type: String,
       enum: [
@@ -196,6 +229,29 @@ const orderStatusHistorySchema = new mongoose.Schema(
         "completed",
         "cancelled",
       ],
+    },
+    actorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    sellerOrderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
+    sellerStatus: {
+      type: String,
+      enum: [
+        "pending",
+        "accepted",
+        "rejected",
+        "preparing",
+        "ready_for_pickup",
+        "dispatched",
+        "delivered",
+        "cancelled",
+      ],
+      default: null,
     },
     note: {
       type: String,
@@ -270,6 +326,14 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
+    },
+
+    platformCommissionCents: {
+      type: Number,
+      required: true,
+      min: 0,
+      validate: Number.isSafeInteger,
+      default: 0,
     },
 
     paymentStatus: {

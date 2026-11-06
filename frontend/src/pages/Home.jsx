@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import ProductCard from '../Components/ProductCard.jsx';
+import { homeHeroPhoto } from '../data/catalog.js';
 
 const highlights = [
   'Verified independent sellers',
@@ -38,6 +39,11 @@ function Home({ products, categories, addToCart }) {
         </div>
 
         <div className="hero-visual">
+          <img
+            className="hero-image"
+            src={homeHeroPhoto}
+            alt="Woman wearing a white Habesha kemis with red and gold embroidery"
+          />
           <div className="hero-card card-primary">
             <span>Featured drop</span>
             <h3>Habesha Kemis</h3>

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { DEFAULT_COMMISSION_RATE_BPS } from "../utils/commission.js";
 
 const addressSchema = new mongoose.Schema(
   {
@@ -132,7 +133,8 @@ const shopSchema = new mongoose.Schema(
       type: Number,
       min: 0,
       max: 10000,
-      default: 0,
+      validate: Number.isSafeInteger,
+      default: DEFAULT_COMMISSION_RATE_BPS,
     },
   },
   {

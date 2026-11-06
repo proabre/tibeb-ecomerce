@@ -7,7 +7,9 @@ const api = axios.create({
 
 export async function fetchPublicProducts() {
   try {
-    const { data } = await api.get('/api/products');
+    const { data } = await api.get('/api/products', {
+      params: { limit: 50 },
+    });
     return data.products ?? [];
   } catch {
     return [];

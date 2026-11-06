@@ -2,22 +2,22 @@
   font-family: 'Segoe UI', Tahoma, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #1f2937;
-  background: #fffaf5;
+  color: #18251f;
+  background: #f8f6f0;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --gold: #d9a441;
-  --gold-dark: #b98119;
-  --green: #1c5d4b;
-  --green-soft: #dfeee8;
-  --cream: #fffaf5;
-  --ink: #1f2937;
-  --muted: #617081;
+  --gold: #c9a46a;
+  --gold-dark: #9c753d;
+  --green: #174b3e;
+  --green-soft: #e5eee8;
+  --cream: #f8f6f0;
+  --ink: #18251f;
+  --muted: #69756e;
   --white: #ffffff;
-  --border: rgba(31, 41, 55, 0.1);
-  --shadow: 0 18px 45px rgba(28, 93, 75, 0.08);
+  --border: rgba(24, 37, 31, 0.1);
+  --shadow: 0 20px 55px rgba(25, 50, 39, 0.09);
 }
 
 * {
@@ -31,7 +31,9 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background: linear-gradient(180deg, #fffaf5 0%, #f7f4ef 100%);
+  background:
+    radial-gradient(ellipse at 50% -20%, rgba(201, 164, 106, 0.13), transparent 44%),
+    #f8f6f0;
   color: var(--ink);
 }
 
@@ -86,4 +88,3 @@ input,
 select {
   border-radius: 12px;
 }
-

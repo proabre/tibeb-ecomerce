@@ -35,8 +35,14 @@ function ProductCard({ product, onAddToCart }) {
             <div className="variant-label">{primaryVariant.label}</div>
           </div>
 
-          <button type="button" className="primary-button compact" onClick={() => onAddToCart(product, primaryVariant)}>
-            Add to cart
+          <button
+            type="button"
+            className="primary-button compact"
+            onClick={() => onAddToCart(product, primaryVariant)}
+            disabled={!product.orderable}
+            title={!product.orderable ? 'This sample product is not listed by a seller yet' : undefined}
+          >
+            {product.orderable ? 'Add to cart' : 'Preview only'}
           </button>
         </div>
       </div>

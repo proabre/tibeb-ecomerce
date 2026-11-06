@@ -33,6 +33,9 @@ function Products({ products, categories, addToCart }) {
         <div>
           <span className="eyebrow">Marketplace</span>
           <h2>Browse handcrafted essentials</h2>
+          <p className="catalog-count" aria-live="polite">
+            {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+          </p>
         </div>
       </div>
 

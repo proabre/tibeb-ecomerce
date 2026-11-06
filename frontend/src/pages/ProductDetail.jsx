@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import ProductViewer from '../Components/ProductViewer.jsx';
 
 function formatETB(value) {
   return new Intl.NumberFormat('en-ET', {
@@ -34,11 +35,11 @@ function ProductDetail({ products, addToCart }) {
 
   return (
     <div className="product-detail-page page-block">
-      <div className="detail-gallery">
-        {product.images.map((image, index) => (
-          <img key={`${product.id}-${index}`} src={image} alt={`${product.name}-${index + 1}`} className="detail-image" />
-        ))}
-      </div>
+      <ProductViewer
+        key={product.slug}
+        images={product.images}
+        name={product.name}
+      />
 
       <div className="detail-content">
         <span className="eyebrow accent">{product.shop}</span>
@@ -66,8 +67,14 @@ function ProductDetail({ products, addToCart }) {
         </div>
 
         <div className="detail-actions">
-          <button type="button" className="primary-button" onClick={() => selectedVariant && addToCart(product, selectedVariant)}>
-            Add to cart
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => selectedVariant && addToCart(product, selectedVariant)}
+            disabled={!product.orderable}
+            title={!product.orderable ? 'This sample product is not listed by a seller yet' : undefined}
+          >
+            {product.orderable ? 'Add to cart' : 'Preview only'}
           </button>
           <Link to="/products" className="secondary-button">
             Continue shopping
