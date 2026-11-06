@@ -6,6 +6,7 @@ import {
   getSellerProducts,
   updateSellerOrderStatus,
   uploadProductImages,
+  uploadProductVideos,
 } from '../lib/api.js';
 
 const makeVariant = () => ({
@@ -28,6 +29,23 @@ const initialForm = () => ({
   variants: [makeVariant()],
 });
 
+function getVideoDuration(file) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    const url = URL.createObjectURL(file);
+
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(url);
+      resolve(video.duration);
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not read video metadata.'));
+    };
+    video.src = url;
+  });
+}
+
 function formatETB(cents) {
   return new Intl.NumberFormat('en-ET', {
     style: 'currency',
@@ -39,7 +57,10 @@ function formatETB(cents) {
 function ShopDashboards({ user, categories, onAuthOpen }) {
   const { t } = useLanguage();
   const [form, setForm] = useState(initialForm);
-  const [images, setImages] = useState([]);
+  const [frontImage, setFrontImage] = useState(null);
+  const [backImage, setBackImage] = useState(null);
+  const [additionalImages, setAdditionalImages] = useState([]);
+  const [videos, setVideos] = useState([]);
   const [products, setProducts] = useState(null);
   const [orders, setOrders] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,14 +68,27 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const isSeller = user?.roles?.includes('seller');
-  const imagePreviews = useMemo(
-    () => images.map((file) => ({ file, url: URL.createObjectURL(file) })),
-    [images],
+  const imagePreviews = useMemo(() => [
+    ...(frontImage ? [{ file: frontImage, label: t('Front view') }] : []),
+    ...(backImage ? [{ file: backImage, label: t('Back view') }] : []),
+    ...additionalImages.map((file) => ({ file, label: t('Additional view') })),
+  ].map((item) => ({ ...item, url: URL.createObjectURL(item.file) })), [
+    additionalImages,
+    backImage,
+    frontImage,
+    t,
+  ]);
+  const videoPreviews = useMemo(
+    () => videos.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    [videos],
   );
 
   useEffect(
-    () => () => imagePreviews.forEach(({ url }) => URL.revokeObjectURL(url)),
-    [imagePreviews],
+    () => () => {
+      imagePreviews.forEach(({ url }) => URL.revokeObjectURL(url));
+      videoPreviews.forEach(({ url }) => URL.revokeObjectURL(url));
+    },
+    [imagePreviews, videoPreviews],
   );
 
   useEffect(() => {
@@ -151,16 +185,57 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
     }));
   };
 
-  const handleImagesChange = (event) => {
+  const handleAngleImageChange = (angle, event) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+    if (file && (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024)) {
+      setError(t('Product images must be image files no larger than 5 MB.'));
+      return;
+    }
+    if (angle === 'front') setFrontImage(file);
+    else setBackImage(file);
+    setError('');
+  };
+
+  const handleAdditionalImagesChange = (event) => {
     const files = Array.from(event.target.files || []);
-    if (files.length > 12 || files.some((file) => !file.type.startsWith('image/') || file.size > 5 * 1024 * 1024)) {
-      setError(t('Choose up to 12 images, each no larger than 5 MB.'));
+    if (files.length > 3 || files.some((file) => !file.type.startsWith('image/') || file.size > 5 * 1024 * 1024)) {
+      setError(t('Choose up to 3 additional images, each no larger than 5 MB.'));
       event.target.value = '';
       return;
     }
-    setImages(files);
+    setAdditionalImages(files);
     event.target.value = '';
     setError('');
+  };
+
+  const handleVideosChange = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+
+    if (
+      files.length > 3 ||
+      files.some(
+        (file) =>
+          !['video/mp4', 'video/webm', 'video/quicktime'].includes(file.type) ||
+          file.size > 20 * 1024 * 1024,
+      )
+    ) {
+      setError(t('Choose up to 3 MP4, WebM, or MOV videos, each no larger than 20 MB.'));
+      return;
+    }
+
+    try {
+      const durations = await Promise.all(files.map(getVideoDuration));
+      if (durations.some((duration) => duration > 60)) {
+        setError(t('Product videos must be 60 seconds or shorter.'));
+        return;
+      }
+      setVideos(files);
+      setError('');
+    } catch {
+      setError(t('Could not read a selected video. Please choose another file.'));
+    }
   };
 
   const handleAcceptOrder = async (order) => {
@@ -200,6 +275,8 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
     if (
       !form.title.trim() ||
       !form.description.trim() ||
+      !frontImage ||
+      !backImage ||
       skus.some((sku) => !sku) ||
       new Set(skus).size !== skus.length ||
       form.variants.some((variant) =>
@@ -210,13 +287,17 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
         Number(variant.stock) < 0
       )
     ) {
-      setError(t('Check the product details, unique SKUs, prices, and stock quantities.'));
+      setError(t('Add front and back photos, then check product details, unique SKUs, prices, and stock quantities.'));
       return;
     }
     setIsSubmitting(true);
 
     try {
-      const uploadedImages = images.length ? await uploadProductImages(images) : [];
+      const imageFiles = [frontImage, backImage, ...additionalImages].filter(Boolean);
+      const [uploadedImages, uploadedVideos] = await Promise.all([
+        uploadProductImages(imageFiles),
+        videos.length ? uploadProductVideos(videos) : Promise.resolve([]),
+      ]);
       const variants = form.variants.map(({ sku, size, color, price, stock }) => ({
         sku: sku.trim(),
         size: size.trim(),
@@ -233,11 +314,15 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
         madeToOrder: form.madeToOrder,
         productionDays: form.madeToOrder ? Number(form.productionDays) : 0,
         images: uploadedImages,
+        videos: uploadedVideos,
         variants,
       });
       setProducts((current) => [product, ...(current || [])]);
       setForm(initialForm());
-      setImages([]);
+      setFrontImage(null);
+      setBackImage(null);
+      setAdditionalImages([]);
+      setVideos([]);
       setSuccess(t('Product submitted for review.'));
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (requestError) {
@@ -414,22 +499,72 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
               </select>
             </label>
 
+            <label className="seller-image-picker">
+              <span>{t('Front photo')}</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => handleAngleImageChange('front', event)}
+              />
+              <small>{t('Required. This is the first product photo customers see.')}</small>
+            </label>
+
+            <label className="seller-image-picker">
+              <span>{t('Back photo')}</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => handleAngleImageChange('back', event)}
+              />
+              <small>{t('Required. Shown as the second product photo.')}</small>
+            </label>
+
             <label className="seller-form-wide seller-image-picker">
-              <span>{t('Product photos')}</span>
+              <span>{t('Additional product photos')}</span>
               <input
                 type="file"
                 accept="image/*"
                 multiple
-                onChange={handleImagesChange}
+                onChange={handleAdditionalImagesChange}
               />
-              <small>{t('Choose up to 12 images, 5 MB each.')}</small>
+              <small>{t('Choose up to 3 additional images, each no larger than 5 MB.')}</small>
+            </label>
+
+            <label className="seller-form-wide seller-image-picker">
+              <span>{t('Short product videos')}</span>
+              <input
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime"
+                multiple
+                onChange={handleVideosChange}
+              />
+              <small>{t('Choose up to 3 MP4, WebM, or MOV videos, each no larger than 20 MB and 60 seconds.')}</small>
             </label>
           </div>
 
           {imagePreviews.length > 0 ? (
             <div className="seller-image-previews">
-              {imagePreviews.map(({ file, url }) => (
-                <img key={`${file.name}-${file.lastModified}`} src={url} alt={file.name} />
+              {imagePreviews.map(({ file, label, url }) => (
+                <figure key={`${file.name}-${file.lastModified}`}>
+                  <img src={url} alt={`${label}: ${file.name}`} />
+                  <figcaption>{label}</figcaption>
+                </figure>
+              ))}
+            </div>
+          ) : null}
+
+          {videoPreviews.length > 0 ? (
+            <div className="seller-video-previews">
+              {videoPreviews.map(({ file, url }) => (
+                <video
+                  key={`${file.name}-${file.lastModified}`}
+                  src={url}
+                  controls
+                  muted
+                  playsInline
+                  preload="metadata"
+                  aria-label={`${t('Video preview')}: ${file.name}`}
+                />
               ))}
             </div>
           ) : null}

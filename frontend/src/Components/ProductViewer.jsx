@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Move3d } from 'lucide-react';
 import { useLanguage } from '../useLanguage.js';
 
-function ProductViewer({ images, name }) {
+function ProductViewer({ images, videos = [], name }) {
   const { t } = useLanguage();
-  const [activeImage, setActiveImage] = useState(images[0]);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const activeImage = images[activeImageIndex];
 
   const handlePointerMove = (event) => {
     if (event.pointerType === 'touch') return;
@@ -36,15 +37,22 @@ function ProductViewer({ images, name }) {
       >
         <div className="product-viewer-glow" aria-hidden="true" />
         <div className="product-viewer-card">
-          <img className="product-viewer-image" src={activeImage} alt={name} />
+          <img
+            className="product-viewer-image"
+            src={activeImage}
+            alt={`${name} - ${t(activeImageIndex === 0 ? 'Front view' : activeImageIndex === 1 ? 'Back view' : 'Product image')}`}
+          />
           <div className="product-viewer-shine" aria-hidden="true" />
         </div>
+        <span className="viewer-angle">
+          {t(activeImageIndex === 0 ? 'Front view' : activeImageIndex === 1 ? 'Back view' : 'Product image')}
+        </span>
         <span className="viewer-hint">
           <Move3d size={15} aria-hidden="true" />
           {t('Move to explore')}
         </span>
         <span className="viewer-index">
-          {String(images.indexOf(activeImage) + 1).padStart(2, '0')} /{' '}
+          {String(activeImageIndex + 1).padStart(2, '0')} /{' '}
           {String(images.length).padStart(2, '0')}
         </span>
       </div>
@@ -55,10 +63,10 @@ function ProductViewer({ images, name }) {
             <button
               type="button"
               key={`${image}-${index}`}
-              className={image === activeImage ? 'viewer-thumbnail active' : 'viewer-thumbnail'}
-              onClick={() => setActiveImage(image)}
+              className={index === activeImageIndex ? 'viewer-thumbnail active' : 'viewer-thumbnail'}
+              onClick={() => setActiveImageIndex(index)}
               aria-label={`${t('View image')} ${index + 1}: ${name}`}
-              aria-pressed={image === activeImage}
+              aria-pressed={index === activeImageIndex}
             >
               <img src={image} alt="" />
             </button>
@@ -66,6 +74,29 @@ function ProductViewer({ images, name }) {
         </div>
       ) : null}
 
+      {videos.length > 0 ? (
+        <section className="product-video-section" aria-labelledby="product-videos-title">
+          <div className="product-media-heading">
+            <span className="eyebrow">{t('Product videos')}</span>
+            <h2 id="product-videos-title">{t('See it in motion')}</h2>
+          </div>
+          <div className="product-video-grid">
+            {videos.map((video, index) => (
+              <video
+                key={`${video}-${index}`}
+                className="product-video"
+                src={video}
+                controls
+                playsInline
+                preload="metadata"
+                aria-label={`${name} - ${t('Product video')} ${index + 1}`}
+              >
+                {t('Your browser does not support video playback.')}
+              </video>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

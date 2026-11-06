@@ -78,6 +78,13 @@ export async function uploadProductImages(files) {
   return data.images.map((image) => image.url);
 }
 
+export async function uploadProductVideos(files) {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('videos', file));
+  const { data } = await api.post('/api/uploads/product-videos', formData);
+  return data.videos;
+}
+
 export async function createSellerProduct(payload) {
   const { data } = await api.post('/api/products', payload);
   return data.product;

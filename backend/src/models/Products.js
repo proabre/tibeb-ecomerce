@@ -128,8 +128,23 @@ const productSchema = new mongoose.Schema(
         },
       ],
       validate: {
-        validator: (images) => images.length <= 12,
-        message: "A product can have at most 12 images.",
+        validator: (images) => images.length <= 5,
+        message: "A product can have at most 5 images.",
+      },
+      default: [],
+    },
+
+    videos: {
+      type: [
+        {
+          type: String,
+          trim: true,
+          maxlength: 2048,
+        },
+      ],
+      validate: {
+        validator: (videos) => videos.length <= 3,
+        message: "A product can have at most 3 videos.",
       },
       default: [],
     },

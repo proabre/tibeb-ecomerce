@@ -64,6 +64,7 @@ function normalizeProduct(product) {
     craftsmanship: product.craftsmanship || 'handmade',
     description: product.description || 'Authentic Ethiopian traditional clothing.',
     images: product.images?.length ? product.images : [fallbackProductImage],
+    videos: Array.isArray(product.videos) ? product.videos : [],
     shop: product.shopId?.name || product.shop || 'Tibeb Market',
     rating: product.rating ?? 4.8,
     stock: product.stock ?? firstVariant?.stock ?? 1,

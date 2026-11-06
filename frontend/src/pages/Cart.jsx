@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, PackageCheck, ShieldCheck, ShoppingBag, Trash2 } from 'lucide-react';
 import { useLanguage } from '../useLanguage.js';
 
 function formatETB(value) {
@@ -29,15 +30,19 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
 
   if (cart.length === 0) {
     return (
-      <div className="page-block empty-state">
-        <h3>{t('Your cart is empty.')}</h3>
+      <div className="cart-empty-state">
+        <span className="cart-empty-icon"><ShoppingBag size={30} aria-hidden="true" /></span>
+        <span className="eyebrow accent">{t('Your cart')}</span>
+        <h2>{t('Your cart is empty.')}</h2>
         <p>{t('Add handcrafted pieces from the marketplace to get started.')}</p>
         <Link to="/products" className="primary-button">
-          {t('Explore products')}
+          {t('Explore products')} <ArrowRight size={17} aria-hidden="true" />
         </Link>
       </div>
     );
   }
+
+  const itemCount = cart.reduce((total, item) => total + item.quantity, 0);
 
   const handleCheckoutSubmit = async (event) => {
     event.preventDefault();
@@ -63,21 +68,37 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
   };
 
   return (
-    <div className="page-block cart-layout">
+    <div className="page-block cart-page">
+      <header className="cart-page-heading">
+        <div>
+          <span className="eyebrow accent">{t('Thoughtfully chosen')}</span>
+          <h1>{t('Your cart')}</h1>
+          <p>{itemCount} {t(itemCount === 1 ? 'piece in your bag' : 'pieces in your bag')}</p>
+        </div>
+        <Link to="/products" className="cart-continue-link">
+          {t('Continue shopping')} <ArrowRight size={16} aria-hidden="true" />
+        </Link>
+      </header>
+
+      <div className="cart-layout">
       <section className="cart-items-panel">
-        <div className="section-heading inline">
+        <div className="cart-panel-heading">
           <div>
-            <span className="eyebrow">{t('Your cart')}</span>
-            <h2>{cart.length} {t('item(s)')}</h2>
+            <h2>{t('Your pieces')}</h2>
+            <p>{t('A little craftsmanship, chosen just for you.')}</p>
           </div>
+          <span className="cart-item-count">{itemCount} {t('items')}</span>
         </div>
 
         {cart.map((item) => (
           <article key={`${item.productId}-${item.variantId}`} className="cart-item">
-            <img src={item.image} alt={item.title} className="cart-item-image" />
+            <div className="cart-item-image-wrap">
+              <img src={item.image} alt={item.title} className="cart-item-image" />
+            </div>
             <div className="cart-item-meta">
               <h3>{item.title}</h3>
-              <span>{item.variantLabel}</span>
+              <span className="cart-item-variant">{item.variantLabel}</span>
+              <span className="cart-item-unit-price">{formatETB(item.price)} {t('each')}</span>
             </div>
             <div className="quantity-control">
               <button type="button" aria-label={t('Decrease quantity')} onClick={() => updateQuantity(item.productId, item.variantId, item.quantity - 1)}>
@@ -89,15 +110,25 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
               </button>
             </div>
             <div className="cart-item-price">{formatETB(item.price * item.quantity)}</div>
-            <button type="button" className="text-button" onClick={() => removeFromCart(item.productId, item.variantId)}>
-              {t('Remove')}
+            <button
+              type="button"
+              className="cart-remove-button"
+              onClick={() => removeFromCart(item.productId, item.variantId)}
+              aria-label={`${t('Remove')} ${item.title}`}
+              title={t('Remove')}
+            >
+              <Trash2 size={17} aria-hidden="true" />
             </button>
           </article>
         ))}
       </section>
 
       <aside className="summary-panel">
-        <h3>{t('Order summary')}</h3>
+        <div className="summary-panel-heading">
+          <span className="summary-heading-icon"><ShoppingBag size={18} aria-hidden="true" /></span>
+          <h2>{t('Order summary')}</h2>
+        </div>
+        <p className="summary-caption">{t('A clear view of your order before checkout.')}</p>
         <div className="summary-row">
           <span>{t('Subtotal')}</span>
           <strong>{formatETB(subtotal)}</strong>
@@ -111,8 +142,13 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
           <strong>{formatETB(subtotal + 450)}</strong>
         </div>
 
-        <button type="button" className="primary-button full-width" onClick={() => setCheckoutOpen((current) => !current)}>
+        <button
+          type="button"
+          className="primary-button full-width cart-checkout-button"
+          onClick={() => setCheckoutOpen((current) => !current)}
+        >
           {t(checkoutOpen ? 'Hide checkout form' : 'Proceed to checkout')}
+          {!checkoutOpen ? <ArrowRight size={17} aria-hidden="true" /> : null}
         </button>
 
         {checkoutOpen ? (
@@ -182,7 +218,13 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
             </button>
           </form>
         ) : null}
+
+        <div className="cart-summary-assurances">
+          <div><PackageCheck size={17} aria-hidden="true" /><span>{t('Delivery details collected at checkout')}</span></div>
+          <div><ShieldCheck size={17} aria-hidden="true" /><span>{t('Review your order before placing it')}</span></div>
+        </div>
       </aside>
+      </div>
     </div>
   );
 }

@@ -40,6 +40,7 @@ function ProductDetail({ products, addToCart }) {
       <ProductViewer
         key={product.slug}
         images={product.images}
+        videos={product.videos}
         name={product.name}
       />
 

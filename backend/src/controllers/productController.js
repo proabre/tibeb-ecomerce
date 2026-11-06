@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 import Product from "../models/Products.js";
 import Shop from "../models/Shop.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
+import {
+  hasValidOptionalProductVideos,
+  hasValidProductImages,
+} from "../utils/productMedia.js";
 
 import User from "../models/User.js";
 
@@ -34,6 +38,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     madeToOrder,
     productionDays,
     images,
+    videos,
     variants,
   } = req.body;
 
@@ -50,9 +55,15 @@ export const createProduct = asyncHandler(async (req, res) => {
     });
   }
 
-  if (!Array.isArray(images || [])) {
+  if (!hasValidProductImages(images)) {
     return res.status(400).json({
-      message: "Images must be an array.",
+      message: "Provide front and back photos and no more than 3 additional photos.",
+    });
+  }
+
+  if (!hasValidOptionalProductVideos(videos)) {
+    return res.status(400).json({
+      message: "Videos must be an array containing no more than 3 clips.",
     });
   }
 
@@ -77,6 +88,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     madeToOrder,
     productionDays,
     images,
+    videos,
     variants,
     status: "draft",
   });
@@ -165,6 +177,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     "madeToOrder",
     "productionDays",
     "images",
+    "videos",
     "variants",
   ];
 
@@ -179,6 +192,24 @@ export const updateProduct = asyncHandler(async (req, res) => {
     product.slug = `${baseSlug}-${new mongoose.Types.ObjectId()
       .toString()
       .slice(-6)}`;
+  }
+
+  if (
+    req.body.images !== undefined &&
+    !hasValidProductImages(req.body.images)
+  ) {
+    return res.status(400).json({
+      message: "Provide front and back photos and no more than 3 additional photos.",
+    });
+  }
+
+  if (
+    req.body.videos !== undefined &&
+    !hasValidOptionalProductVideos(req.body.videos)
+  ) {
+    return res.status(400).json({
+      message: "Videos must be an array containing no more than 3 clips.",
+    });
   }
 
   await product.save();

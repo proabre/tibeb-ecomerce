@@ -37,15 +37,23 @@ function ProductCard({ product, onAddToCart }) {
             <div className="variant-label">{primaryVariant.label}</div>
           </div>
 
-          <button
-            type="button"
-            className="primary-button compact"
-            onClick={() => onAddToCart(product, primaryVariant)}
-            disabled={!product.orderable}
-            title={!product.orderable ? t('This sample product is not listed by a seller yet') : undefined}
-          >
-            {t(product.orderable ? 'Add to cart' : 'Preview only')}
-          </button>
+          <div className="product-card-actions">
+            <Link
+              to={`/products/${product.slug}`}
+              className="secondary-button compact product-view-link"
+            >
+              {t('View product')}
+            </Link>
+            <button
+              type="button"
+              className="primary-button compact"
+              onClick={() => onAddToCart(product, primaryVariant)}
+              disabled={!product.orderable}
+              title={!product.orderable ? t('This sample product is not listed by a seller yet') : undefined}
+            >
+              {t(product.orderable ? 'Add to cart' : 'Preview only')}
+            </button>
+          </div>
         </div>
       </div>
     </article>
