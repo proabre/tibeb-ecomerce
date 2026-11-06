@@ -1,13 +1,28 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Filter from '../Components/Filter.jsx';
 import ProductCard from '../Components/ProductCard.jsx';
 import { useLanguage } from '../useLanguage.js';
 
 function Products({ products, categories, addToCart }) {
   const { t } = useLanguage();
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedCategory = searchParams.get('category');
+  const selectedCategory = requestedCategory && Object.hasOwn(categories, requestedCategory)
+    ? requestedCategory
+    : 'all';
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('recommended');
+
+  const handleCategoryChange = (category) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (category === 'all') {
+      nextParams.delete('category');
+    } else {
+      nextParams.set('category', category);
+    }
+    setSearchParams(nextParams);
+  };
 
   const filteredProducts = useMemo(() => {
     const nextProducts = products.filter((product) => {
@@ -44,7 +59,7 @@ function Products({ products, categories, addToCart }) {
       <Filter
         categories={categories}
         selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
+        onCategoryChange={handleCategoryChange}
         search={search}
         onSearchChange={setSearch}
         sortBy={sortBy}

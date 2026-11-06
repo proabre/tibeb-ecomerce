@@ -66,7 +66,11 @@ function Home({ products, categories, addToCart }) {
 
         <div className="category-grid">
           {Object.entries(categories).map(([key, label]) => (
-            <Link key={key} to="/products" className="category-card">
+            <Link
+              key={key}
+              to={`/products?category=${encodeURIComponent(key)}`}
+              className="category-card"
+            >
               <span>{t(label)}</span>
             </Link>
           ))}
