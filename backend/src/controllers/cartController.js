@@ -108,6 +108,12 @@ export const addToCart = asyncHandler(async (req, res) => {
     });
   }
 
+  if (shop.ownerId.toString() === req.user._id.toString()) {
+    return res.status(400).json({
+      message: "You cannot purchase products from your own shop",
+    });
+  }
+
   const variant = product.variants.find(
     (v) => v.sku === variantSku.trim().toUpperCase(),
   );

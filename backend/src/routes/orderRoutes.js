@@ -26,9 +26,9 @@ router.patch(
 );
 
 // Customer routes
-router.post("/", authorize("customer"), createOrder);
-router.get("/", authorize("customer"), getMyOrders);
-router.patch("/:id/cancel", authorize("customer"), cancelMyOrder);
-router.get("/:id", authorize("customer"), getMyOrderById);
+router.post("/", authorize("customer", "seller"), createOrder);
+router.get("/", authorize("customer", "seller"), getMyOrders);
+router.patch("/:id/cancel", authorize("customer", "seller"), cancelMyOrder);
+router.get("/:id", authorize("customer", "seller"), getMyOrderById);
 
 export default router;

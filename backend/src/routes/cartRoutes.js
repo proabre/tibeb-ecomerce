@@ -11,7 +11,7 @@ import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.use(protect, authorize("customer"));
+router.use(protect, authorize("customer", "seller"));
 
 router.get("/", getCart);
 router.post("/items", addToCart);

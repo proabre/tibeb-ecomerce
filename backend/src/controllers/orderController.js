@@ -116,6 +116,14 @@ const createOrder = asyncHandler(async (req, res) => {
           throw error;
         }
 
+        if (shop.ownerId.toString() === req.user._id.toString()) {
+          const error = new Error(
+            "You cannot purchase products from your own shop.",
+          );
+          error.statusCode = 400;
+          throw error;
+        }
+
         const variant = product.variants.find(
           (item) => item.sku === cartItem.variantSku,
         );

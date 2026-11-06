@@ -1,5 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, LogOut } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
 import { useLanguage } from './useLanguage.js';
@@ -121,6 +121,7 @@ function App() {
   );
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [logoutError, setLogoutError] = useState('');
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [cartError, setCartError] = useState('');
@@ -343,6 +344,7 @@ function App() {
       await logoutUser();
       setUser(null);
       setCart([]);
+      setIsLogoutConfirmOpen(false);
     } catch (error) {
       setLogoutError(
         error?.response?.data?.message || t('Could not sign out. Please try again.'),
@@ -395,7 +397,10 @@ function App() {
             setAuthError('');
             setIsAuthOpen(true);
           }}
-          onLogout={handleLogout}
+          onLogout={() => {
+            setLogoutError('');
+            setIsLogoutConfirmOpen(true);
+          }}
           isLoggingOut={isLoggingOut}
           logoutError={logoutError}
         />
@@ -595,6 +600,52 @@ function App() {
               {t(authMode === 'login' ? 'Need an account? Register' : 'Already have an account? Sign in')}
             </button>
           </div>
+        </div>
+      ) : null}
+      {isLogoutConfirmOpen ? (
+        <div
+          className="modal-backdrop"
+          onClick={() => !isLoggingOut && setIsLogoutConfirmOpen(false)}
+        >
+          <section
+            className="logout-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="logout-title"
+            aria-describedby="logout-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="logout-icon" aria-hidden="true">
+              <LogOut size={23} />
+            </div>
+            <h2 id="logout-title">{t('Sign out?')}</h2>
+            <p id="logout-description">{t('Are you sure you want to sign out?')}</p>
+            {logoutError ? (
+              <div className="logout-modal-error" role="alert">
+                {logoutError}
+              </div>
+            ) : null}
+            <div className="logout-modal-actions">
+              <button
+                type="button"
+                className="logout-cancel-button"
+                onClick={() => setIsLogoutConfirmOpen(false)}
+                disabled={isLoggingOut}
+                autoFocus
+              >
+                {t('Stay signed in')}
+              </button>
+              <button
+                type="button"
+                className="logout-confirm-button"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+              >
+                <LogOut size={17} aria-hidden="true" />
+                {t(isLoggingOut ? 'Signing out...' : 'Sign out')}
+              </button>
+            </div>
+          </section>
         </div>
       ) : null}
     </BrowserRouter>
