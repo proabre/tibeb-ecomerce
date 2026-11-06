@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 
 import User from "../models/User.js";
 import { cookieOptions } from "../middleware/authMiddleware.js";
+import { grantConfiguredAdminRole } from "../utils/adminAccess.js";
 
 const stateCookieOptions = {
   httpOnly: true,
@@ -251,6 +252,7 @@ async function findOrCreateOAuthUser(provider, profile) {
   }
 
   user.lastLoginAt = new Date();
+  grantConfiguredAdminRole(user);
   await user.save();
   return user;
 }

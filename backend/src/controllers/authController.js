@@ -5,6 +5,7 @@ import { z } from "zod";
 import User from "../models/User.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { cookieOptions } from "../middleware/authMiddleware.js";
+import { grantConfiguredAdminRole } from "../utils/adminAccess.js";
 
 const registerSchema = z
   .object({
@@ -157,6 +158,7 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
 
+  grantConfiguredAdminRole(user);
   user.lastLoginAt = new Date();
   await user.save();
 

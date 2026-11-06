@@ -722,6 +722,269 @@
   box-shadow: 0 12px 32px rgba(25, 50, 39, 0.06);
 }
 
+.admin-dashboard {
+  display: grid;
+  gap: 22px;
+  width: min(100%, 1120px);
+  margin: 0 auto;
+}
+
+.admin-dashboard-heading,
+.admin-review-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.admin-dashboard-heading {
+  padding: clamp(22px, 4vw, 36px);
+  border: 1px solid rgba(24, 37, 31, 0.08);
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 92% 10%, rgba(201, 164, 106, 0.16), transparent 34%),
+    #fcfbf8;
+}
+
+.admin-dashboard-heading h2 {
+  margin: 5px 0 7px;
+  color: #173a30;
+  font-size: clamp(1.8rem, 3.2vw, 2.5rem);
+}
+
+.admin-dashboard-heading p,
+.admin-review-heading p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.admin-pending-count {
+  display: grid;
+  min-width: 100px;
+  gap: 4px;
+  justify-items: center;
+  padding: 14px;
+  border: 1px solid rgba(183, 138, 76, 0.18);
+  border-radius: 16px;
+  background: rgba(183, 138, 76, 0.08);
+  color: #76552d;
+  text-align: center;
+}
+
+.admin-pending-count strong {
+  font-size: 1.6rem;
+}
+
+.admin-pending-count span {
+  font-size: 0.78rem;
+}
+
+.admin-review-panel {
+  display: grid;
+  gap: 20px;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid rgba(24, 37, 31, 0.08);
+  border-radius: 22px;
+  background: #fcfbf8;
+  box-shadow: 0 12px 32px rgba(25, 50, 39, 0.05);
+}
+
+.admin-review-heading h3 {
+  margin: 0 0 5px;
+  color: #173a30;
+}
+
+.admin-review-heading p {
+  font-size: 0.9rem;
+}
+
+.admin-review-message {
+  margin: 0;
+  color: var(--muted);
+}
+
+.admin-empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 42px 18px;
+  border: 1px dashed rgba(23, 75, 62, 0.2);
+  border-radius: 16px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.admin-empty-state strong {
+  color: #173a30;
+}
+
+.admin-empty-state p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.admin-empty-check {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: rgba(23, 120, 74, 0.1);
+  color: #17613d;
+  font-weight: 800;
+}
+
+.admin-product-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-product-card {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 18px;
+  padding: 14px;
+  border: 1px solid rgba(24, 37, 31, 0.08);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.admin-product-image {
+  width: 132px;
+  height: 152px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #f4f1e8, #e9eee8);
+  object-fit: cover;
+}
+
+.admin-product-content {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 12px;
+}
+
+.admin-product-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-product-title-row h4 {
+  margin: 0 0 4px;
+  color: #173a30;
+  font-size: 1.05rem;
+}
+
+.admin-product-shop {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.admin-category-tag {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(23, 75, 62, 0.07);
+  color: #174b3e;
+  font-size: 0.76rem;
+}
+
+.admin-product-description {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: #626f67;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.admin-variant-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.admin-variant-summary span {
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: #f5f5f1;
+  color: #526057;
+  font-size: 0.78rem;
+}
+
+.admin-review-warning {
+  margin: 0;
+  color: #8a6538;
+  font-size: 0.84rem;
+}
+
+.admin-product-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+
+.admin-product-actions .secondary-button,
+.admin-reject-button {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: white;
+  color: #526057;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-product-actions .secondary-button:hover {
+  border-color: #b78a4c;
+  color: #76552d;
+}
+
+.admin-reject-button {
+  border-color: rgba(185, 28, 28, 0.18);
+  background: rgba(185, 28, 28, 0.06);
+  color: #a33131;
+}
+
+.admin-reject-button:hover:not(:disabled) {
+  background: rgba(185, 28, 28, 0.12);
+}
+
+.admin-product-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-rejection-form,
+.admin-rejection-form label {
+  display: grid;
+  gap: 9px;
+}
+
+.admin-rejection-form label {
+  color: #34443b;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.admin-rejection-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+  resize: vertical;
+}
+
 .seller-gate {
   display: grid;
   justify-items: start;

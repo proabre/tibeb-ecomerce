@@ -432,7 +432,19 @@ function App() {
               }
             />
             <Route path="/orders" element={<Order order={latestOrder ?? sampleOrder} />} />
-            <Route path="/admin" element={<AdminDashboard />} />
+            <Route
+              path="/admin"
+              element={
+                <AdminDashboard
+                  user={user}
+                  onAuthOpen={(mode) => {
+                    setAuthMode(mode);
+                    setAuthError('');
+                    setIsAuthOpen(true);
+                  }}
+                />
+              }
+            />
             <Route
               path="/shop"
               element={

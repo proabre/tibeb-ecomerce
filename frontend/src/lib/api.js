@@ -100,6 +100,19 @@ export async function updateSellerOrderStatus(orderId, action) {
   return data;
 }
 
+export async function getPendingAdminProducts() {
+  const { data } = await api.get('/api/products/admin/pending');
+  return data.products ?? [];
+}
+
+export async function reviewAdminProduct(productId, action, rejectionReason = '') {
+  const { data } = await api.patch(`/api/products/admin/${productId}/review`, {
+    action,
+    ...(action === 'reject' ? { rejectionReason } : {}),
+  });
+  return data;
+}
+
 export async function createOrder(payload) {
   const { data } = await api.post('/api/orders', payload);
   return data;
