@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../useLanguage.js';
 
 function formatETB(value) {
   return new Intl.NumberFormat('en-ET', {
@@ -9,6 +10,7 @@ function formatETB(value) {
 }
 
 function ProductCard({ product, onAddToCart }) {
+  const { t } = useLanguage();
   const primaryVariant = product.variants[0];
 
   return (
@@ -40,9 +42,9 @@ function ProductCard({ product, onAddToCart }) {
             className="primary-button compact"
             onClick={() => onAddToCart(product, primaryVariant)}
             disabled={!product.orderable}
-            title={!product.orderable ? 'This sample product is not listed by a seller yet' : undefined}
+            title={!product.orderable ? t('This sample product is not listed by a seller yet') : undefined}
           >
-            {product.orderable ? 'Add to cart' : 'Preview only'}
+            {t(product.orderable ? 'Add to cart' : 'Preview only')}
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
+import { useLanguage } from './useLanguage.js';
 
 import Navbar from './Components/Navbar.jsx';
 import Footer from './Components/Footer.jsx';
@@ -98,6 +99,7 @@ function normalizeCartItem(item) {
 }
 
 function App() {
+  const { t } = useLanguage();
   const [products, setProducts] = useState(productCatalog);
   const [user, setUser] = useState(null);
   const [authMode, setAuthMode] = useState('login');
@@ -170,18 +172,18 @@ function App() {
   const addToCart = async (product, variant) => {
     if (!user) {
       setAuthMode('login');
-      setAuthError('Please sign in to add items to your cart.');
+      setAuthError(t('Please sign in to add items to your cart.'));
       setIsAuthOpen(true);
       return;
     }
 
     if (!product.orderable) {
-      setCartError('This catalog preview item is not yet listed by a seller and cannot be ordered.');
+      setCartError(t('This catalog preview item is not yet listed by a seller and cannot be ordered.'));
       return;
     }
 
     if (!variant.sku) {
-      setCartError('This product is missing a valid variant SKU and cannot be added to your cart.');
+      setCartError(t('This product is missing a valid variant SKU and cannot be added to your cart.'));
       return;
     }
 
@@ -190,7 +192,7 @@ function App() {
       await addCartItem(product.id, variant.sku, 1);
       await refreshCart();
     } catch (error) {
-      setCartError(error?.response?.data?.message || 'Could not add this product to your cart.');
+      setCartError(error?.response?.data?.message || t('Could not add this product to your cart.'));
     }
   };
 
@@ -208,7 +210,7 @@ function App() {
       await updateCartItem(item.cartItemId, nextQuantity);
       await refreshCart();
     } catch (error) {
-      setCartError(error?.response?.data?.message || 'Could not update your cart.');
+      setCartError(error?.response?.data?.message || t('Could not update your cart.'));
     }
   };
 
@@ -221,7 +223,7 @@ function App() {
       await removeCartItem(item.cartItemId);
       await refreshCart();
     } catch (error) {
-      setCartError(error?.response?.data?.message || 'Could not remove this item from your cart.');
+      setCartError(error?.response?.data?.message || t('Could not remove this item from your cart.'));
     }
   };
 
@@ -233,6 +235,9 @@ function App() {
   const subtotal = useMemo(
     () => cart.reduce((total, item) => total + item.price * item.quantity, 0),
     [cart],
+  );
+  const localizedCategoryLabels = Object.fromEntries(
+    Object.entries(categoryLabels).map(([key, label]) => [key, t(label)]),
   );
 
   const handleAuthSubmit = async (event) => {
@@ -266,7 +271,7 @@ function App() {
       try {
         await refreshCart();
       } catch (error) {
-        setCartError(error?.response?.data?.message || 'Could not load your saved cart.');
+        setCartError(error?.response?.data?.message || t('Could not load your saved cart.'));
       }
       setIsAuthOpen(false);
       setAuthError('');
@@ -276,7 +281,7 @@ function App() {
       setAuthError(
         validationErrors?.map(({ message }) => message).join(' ') ||
           error?.response?.data?.message ||
-          'Authentication failed. Please try again.',
+          t('Authentication failed. Please try again.'),
       );
     } finally {
       setIsAuthSubmitting(false);
@@ -293,7 +298,7 @@ function App() {
       setCart([]);
     } catch (error) {
       setLogoutError(
-        error?.response?.data?.message || 'Could not sign out. Please try again.',
+        error?.response?.data?.message || t('Could not sign out. Please try again.'),
       );
     } finally {
       setIsLoggingOut(false);
@@ -303,7 +308,7 @@ function App() {
   const handleCheckout = async (shippingAddress, customerNote = '') => {
     if (!user) {
       setAuthMode('login');
-      setAuthError('Please sign in to place an order.');
+      setAuthError(t('Please sign in to place an order.'));
       setIsAuthOpen(true);
       return null;
     }
@@ -357,11 +362,11 @@ function App() {
           <Routes>
             <Route
               path="/"
-              element={<Home products={products} categories={categoryLabels} addToCart={addToCart} />}
+              element={<Home products={products} categories={localizedCategoryLabels} addToCart={addToCart} />}
             />
             <Route
               path="/products"
-              element={<Products products={products} categories={categoryLabels} addToCart={addToCart} />}
+              element={<Products products={products} categories={localizedCategoryLabels} addToCart={addToCart} />}
             />
             <Route
               path="/products/:slug"
@@ -400,26 +405,26 @@ function App() {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="auth-header">
-              <h3 id="auth-title">{authMode === 'login' ? 'Welcome back' : 'Create account'}</h3>
+              <h3 id="auth-title">{t(authMode === 'login' ? 'Welcome back' : 'Create account')}</h3>
               <button
                 type="button"
                 className="text-button"
                 onClick={() => setIsAuthOpen(false)}
                 disabled={isAuthSubmitting}
               >
-                Close
+                {t('Close')}
               </button>
             </div>
 
             <form className="auth-form" onSubmit={handleAuthSubmit}>
               {authMode === 'register' ? (
                 <label>
-                  <span>Name</span>
+                  <span>{t('Name')}</span>
                   <input
                     type="text"
                     value={authForm.name}
                     onChange={(event) => setAuthForm((current) => ({ ...current, name: event.target.value }))}
-                    placeholder="Your full name"
+                    placeholder={t('Your full name')}
                     autoComplete="name"
                     minLength={2}
                     maxLength={100}
@@ -429,12 +434,12 @@ function App() {
               ) : null}
 
               <label>
-                <span>{authMode === 'login' ? 'Email or phone' : 'Email or phone number'}</span>
+                <span>{t(authMode === 'login' ? 'Email or phone' : 'Email or phone number')}</span>
                 <input
                   type="text"
                   value={authForm.identifier}
                   onChange={(event) => setAuthForm((current) => ({ ...current, identifier: event.target.value }))}
-                  placeholder="you@example.com or 0911..."
+                  placeholder={t('you@example.com or 0911...')}
                   autoComplete={authMode === 'login' ? 'username' : 'email'}
                   maxLength={254}
                   required
@@ -442,12 +447,12 @@ function App() {
               </label>
 
               <label>
-                <span>Password</span>
+                <span>{t('Password')}</span>
                 <input
                   type="password"
                   value={authForm.password}
                   onChange={(event) => setAuthForm((current) => ({ ...current, password: event.target.value }))}
-                  placeholder="Password"
+                  placeholder={t('Password')}
                   autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
                   minLength={authMode === 'register' ? 8 : 1}
                   maxLength={72}
@@ -463,10 +468,10 @@ function App() {
                 disabled={isAuthSubmitting}
               >
                 {isAuthSubmitting
-                  ? 'Please wait...'
+                  ? t('Please wait...')
                   : authMode === 'login'
-                    ? 'Sign in'
-                    : 'Create account'}
+                    ? t('Sign in')
+                    : t('Create account')}
               </button>
             </form>
 
@@ -479,7 +484,7 @@ function App() {
               }}
               disabled={isAuthSubmitting}
             >
-              {authMode === 'login' ? 'Need an account? Register' : 'Already have an account? Sign in'}
+              {t(authMode === 'login' ? 'Need an account? Register' : 'Already have an account? Sign in')}
             </button>
           </div>
         </div>

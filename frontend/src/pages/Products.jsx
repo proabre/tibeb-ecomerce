@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import Filter from '../Components/Filter.jsx';
 import ProductCard from '../Components/ProductCard.jsx';
+import { useLanguage } from '../useLanguage.js';
 
 function Products({ products, categories, addToCart }) {
+  const { t } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('recommended');
@@ -31,10 +33,10 @@ function Products({ products, categories, addToCart }) {
     <div className="page-block">
       <div className="section-heading inline">
         <div>
-          <span className="eyebrow">Marketplace</span>
-          <h2>Browse handcrafted essentials</h2>
+          <span className="eyebrow">{t('Marketplace')}</span>
+          <h2>{t('Browse handcrafted essentials')}</h2>
           <p className="catalog-count" aria-live="polite">
-            {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+            {filteredProducts.length} {t(filteredProducts.length === 1 ? 'product' : 'products')}
           </p>
         </div>
       </div>
@@ -56,8 +58,8 @@ function Products({ products, categories, addToCart }) {
           ))
         ) : (
           <div className="empty-state">
-            <h3>No products match your filters.</h3>
-            <p>Try another category or a broader search.</p>
+            <h3>{t('No products match your filters.')}</h3>
+            <p>{t('Try another category or a broader search.')}</p>
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../useLanguage.js';
 
 const shopLinks = [
   { label: 'Habesha Kemis', category: 'habesha-kemis' },
@@ -9,6 +10,8 @@ const shopLinks = [
 ];
 
 function Footer() {
+  const { t } = useLanguage();
+
   return (
     <footer className="site-footer">
       <div className="footer-main">
@@ -18,38 +21,37 @@ function Footer() {
             <span>Tibeb</span>
           </Link>
           <p>
-            A celebration of Ethiopian craft, culture, and the hands that weave
-            every story.
+            {t('A celebration of Ethiopian craft, culture, and the hands that weave every story.')}
           </p>
           <div className="footer-origin">
             <MapPin size={16} aria-hidden="true" />
-            Rooted in Ethiopia
+            {t('Rooted in Ethiopia')}
           </div>
         </section>
 
-        <nav className="footer-links" aria-label="Shop categories">
-          <h2>Explore</h2>
+        <nav className="footer-links" aria-label={t('Shop categories')}>
+          <h2>{t('Explore')}</h2>
           {shopLinks.map((item) => (
             <Link
               key={item.category}
               to={`/products?category=${item.category}`}
             >
-              {item.label}
+              {t(item.label)}
             </Link>
           ))}
-          <Link to="/products">All products</Link>
+          <Link to="/products">{t('All products')}</Link>
         </nav>
 
-        <nav className="footer-links" aria-label="Customer links">
-          <h2>Your account</h2>
-          <Link to="/cart">Shopping cart</Link>
-          <Link to="/orders">Track an order</Link>
-          <Link to="/shop">Sell on Tibeb</Link>
-          <Link to="/products">Help & support</Link>
+        <nav className="footer-links" aria-label={t('Customer links')}>
+          <h2>{t('Your account')}</h2>
+          <Link to="/cart">{t('Shopping cart')}</Link>
+          <Link to="/orders">{t('Track an order')}</Link>
+          <Link to="/shop">{t('Sell on Tibeb')}</Link>
+          <Link to="/products">{t('Help & support')}</Link>
         </nav>
 
         <section className="footer-contact">
-          <h2>Get in touch</h2>
+          <h2>{t('Get in touch')}</h2>
           <p>
             <MapPin size={17} aria-hidden="true" />
             Addis Ababa, Ethiopia
@@ -59,7 +61,7 @@ function Footer() {
 
       <div className="footer-bottom">
         <span>© {new Date().getFullYear()} Tibeb Marketplace</span>
-        <span>Made with care in Ethiopia <span aria-hidden="true">✦</span></span>
+        <span>{t('Made with care in Ethiopia')} <span aria-hidden="true">✦</span></span>
       </div>
     </footer>
   );

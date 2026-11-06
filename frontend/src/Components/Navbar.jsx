@@ -1,5 +1,6 @@
 import { Link, NavLink } from "react-router-dom";
 import { LogOut, UserRound, UserRoundPlus } from "lucide-react";
+import { useLanguage } from "../useLanguage.js";
 
 const navItems = [
   { label: "Home", to: "/" },
@@ -17,6 +18,8 @@ function Navbar({
   isLoggingOut,
   logoutError,
 }) {
+  const { language, setLanguage, t } = useLanguage();
+
   return (
     <header className="topbar">
       <div className="brand-wrap">
@@ -26,7 +29,7 @@ function Navbar({
         </Link>
       </div>
 
-      <nav className="main-nav" aria-label="Main navigation">
+      <nav className="main-nav" aria-label={t("Main navigation")}>
         {navItems.map((item) => (
           <NavLink
             key={item.to}
@@ -35,12 +38,24 @@ function Navbar({
               isActive ? "nav-link active" : "nav-link"
             }
           >
-            {item.label}
+            {t(item.label)}
           </NavLink>
         ))}
       </nav>
 
       <div className="nav-actions">
+        <label className="language-control">
+          <span>{t("Language")}</span>
+          <select
+            value={language}
+            onChange={(event) => setLanguage(event.target.value)}
+            aria-label={t("Language")}
+          >
+            <option value="en">English</option>
+            <option value="am">አማርኛ</option>
+            <option value="om">Afaan Oromoo</option>
+          </select>
+        </label>
         {user ? (
           <div className="account-actions">
             <span className="account-name" title={user.name}>
@@ -54,7 +69,7 @@ function Navbar({
               disabled={isLoggingOut}
             >
               <LogOut size={17} aria-hidden="true" />
-              {isLoggingOut ? "Signing out..." : "Sign out"}
+              {t(isLoggingOut ? "Signing out..." : "Sign out")}
             </button>
             {logoutError ? (
               <span className="nav-auth-error" role="alert">
@@ -70,7 +85,7 @@ function Navbar({
               onClick={() => onAuthOpen("login")}
             >
               <UserRound size={18} aria-hidden="true" />
-              Sign in
+              {t("Sign in")}
             </button>
             <button
               type="button"
@@ -78,12 +93,12 @@ function Navbar({
               onClick={() => onAuthOpen("register")}
             >
               <UserRoundPlus size={18} aria-hidden="true" />
-              Sign up
+              {t("Sign up")}
             </button>
           </div>
         )}
         <Link to="/cart" className="cart-link">
-          Cart
+          {t("Cart")}
           {cartCount > 0 ? (
             <span className="cart-count">{cartCount}</span>
           ) : null}

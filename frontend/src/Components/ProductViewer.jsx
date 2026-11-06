@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Move3d } from 'lucide-react';
+import { useLanguage } from '../useLanguage.js';
 
 function ProductViewer({ images, name }) {
+  const { t } = useLanguage();
   const [activeImage, setActiveImage] = useState(images[0]);
 
   const handlePointerMove = (event) => {
@@ -39,7 +41,7 @@ function ProductViewer({ images, name }) {
         </div>
         <span className="viewer-hint">
           <Move3d size={15} aria-hidden="true" />
-          Move to explore
+          {t('Move to explore')}
         </span>
         <span className="viewer-index">
           {String(images.indexOf(activeImage) + 1).padStart(2, '0')} /{' '}
@@ -48,14 +50,14 @@ function ProductViewer({ images, name }) {
       </div>
 
       {images.length > 1 ? (
-        <div className="product-viewer-thumbnails" aria-label="Product images">
+        <div className="product-viewer-thumbnails" aria-label={t('Product images')}>
           {images.map((image, index) => (
             <button
               type="button"
               key={`${image}-${index}`}
               className={image === activeImage ? 'viewer-thumbnail active' : 'viewer-thumbnail'}
               onClick={() => setActiveImage(image)}
-              aria-label={`View ${name}, image ${index + 1}`}
+              aria-label={`${t('View image')} ${index + 1}: ${name}`}
               aria-pressed={image === activeImage}
             >
               <img src={image} alt="" />

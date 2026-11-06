@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useLanguage } from '../useLanguage.js';
 
 function formatETB(value) {
   return new Intl.NumberFormat('en-ET', {
@@ -19,6 +20,7 @@ const emptyShippingForm = {
 };
 
 function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
+  const { t } = useLanguage();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [shippingAddress, setShippingAddress] = useState(emptyShippingForm);
   const [checkoutError, setCheckoutError] = useState('');
@@ -28,10 +30,10 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
   if (cart.length === 0) {
     return (
       <div className="page-block empty-state">
-        <h3>Your cart is empty.</h3>
-        <p>Add handcrafted pieces from the marketplace to get started.</p>
+        <h3>{t('Your cart is empty.')}</h3>
+        <p>{t('Add handcrafted pieces from the marketplace to get started.')}</p>
         <Link to="/products" className="primary-button">
-          Explore products
+          {t('Explore products')}
         </Link>
       </div>
     );
@@ -54,7 +56,7 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
       await onCheckout(payload, shippingAddress.customerNote);
       navigate('/orders');
     } catch (error) {
-      setCheckoutError(error?.response?.data?.message || 'Checkout failed. Please try again.');
+      setCheckoutError(error?.response?.data?.message || t('Checkout failed. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -65,8 +67,8 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
       <section className="cart-items-panel">
         <div className="section-heading inline">
           <div>
-            <span className="eyebrow">Your cart</span>
-            <h2>{cart.length} item(s)</h2>
+            <span className="eyebrow">{t('Your cart')}</span>
+            <h2>{cart.length} {t('item(s)')}</h2>
           </div>
         </div>
 
@@ -78,45 +80,45 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
               <span>{item.variantLabel}</span>
             </div>
             <div className="quantity-control">
-              <button type="button" onClick={() => updateQuantity(item.productId, item.variantId, item.quantity - 1)}>
+              <button type="button" aria-label={t('Decrease quantity')} onClick={() => updateQuantity(item.productId, item.variantId, item.quantity - 1)}>
                 -
               </button>
               <span>{item.quantity}</span>
-              <button type="button" onClick={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)}>
+              <button type="button" aria-label={t('Increase quantity')} onClick={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)}>
                 +
               </button>
             </div>
             <div className="cart-item-price">{formatETB(item.price * item.quantity)}</div>
             <button type="button" className="text-button" onClick={() => removeFromCart(item.productId, item.variantId)}>
-              Remove
+              {t('Remove')}
             </button>
           </article>
         ))}
       </section>
 
       <aside className="summary-panel">
-        <h3>Order summary</h3>
+        <h3>{t('Order summary')}</h3>
         <div className="summary-row">
-          <span>Subtotal</span>
+          <span>{t('Subtotal')}</span>
           <strong>{formatETB(subtotal)}</strong>
         </div>
         <div className="summary-row">
-          <span>Delivery</span>
+          <span>{t('Delivery')}</span>
           <strong>ETB 450</strong>
         </div>
         <div className="summary-row total">
-          <span>Total</span>
+          <span>{t('Total')}</span>
           <strong>{formatETB(subtotal + 450)}</strong>
         </div>
 
         <button type="button" className="primary-button full-width" onClick={() => setCheckoutOpen((current) => !current)}>
-          {checkoutOpen ? 'Hide checkout form' : 'Proceed to checkout'}
+          {t(checkoutOpen ? 'Hide checkout form' : 'Proceed to checkout')}
         </button>
 
         {checkoutOpen ? (
           <form className="checkout-form" onSubmit={handleCheckoutSubmit}>
             <label>
-              <span>Recipient name</span>
+              <span>{t('Recipient name')}</span>
               <input
                 type="text"
                 value={shippingAddress.recipientName}
@@ -126,7 +128,7 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
             </label>
 
             <label>
-              <span>Phone</span>
+              <span>{t('Phone')}</span>
               <input
                 type="tel"
                 value={shippingAddress.phone}
@@ -136,7 +138,7 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
             </label>
 
             <label>
-              <span>City</span>
+              <span>{t('City')}</span>
               <input
                 type="text"
                 value={shippingAddress.city}
@@ -146,7 +148,7 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
             </label>
 
             <label>
-              <span>Address</span>
+              <span>{t('Address')}</span>
               <input
                 type="text"
                 value={shippingAddress.addressLine}
@@ -156,7 +158,7 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
             </label>
 
             <label>
-              <span>Delivery instructions</span>
+              <span>{t('Delivery instructions')}</span>
               <input
                 type="text"
                 value={shippingAddress.deliveryInstructions}
@@ -165,7 +167,7 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
             </label>
 
             <label>
-              <span>Order note</span>
+              <span>{t('Order note')}</span>
               <textarea
                 rows="3"
                 value={shippingAddress.customerNote}
@@ -176,7 +178,7 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
             {checkoutError ? <div className="auth-error">{checkoutError}</div> : null}
 
             <button type="submit" className="primary-button full-width" disabled={isSubmitting}>
-              {isSubmitting ? 'Placing order...' : 'Place order'}
+              {t(isSubmitting ? 'Placing order...' : 'Place order')}
             </button>
           </form>
         ) : null}

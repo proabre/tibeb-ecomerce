@@ -1,3 +1,5 @@
+import { useLanguage } from '../useLanguage.js';
+
 const sales = [
   { label: 'Orders', value: '68' },
   { label: 'Revenue', value: 'ETB 328k' },
@@ -12,19 +14,21 @@ const recentOrders = [
 ];
 
 function ShopDashboards() {
+  const { t } = useLanguage();
+
   return (
     <div className="page-block">
       <div className="section-heading inline">
         <div>
-          <span className="eyebrow">Seller dashboard</span>
-          <h2>Manage your shop</h2>
+          <span className="eyebrow">{t('Seller dashboard')}</span>
+          <h2>{t('Manage your shop')}</h2>
         </div>
       </div>
 
       <div className="stats-grid">
         {sales.map((stat) => (
           <div key={stat.label} className="stat-card">
-            <span>{stat.label}</span>
+            <span>{t(stat.label)}</span>
             <strong>{stat.value}</strong>
           </div>
         ))}
@@ -32,7 +36,7 @@ function ShopDashboards() {
 
       <div className="dashboard-grid">
         <section className="panel-card">
-          <h3>Recent orders</h3>
+          <h3>{t('Recent orders')}</h3>
           <ul className="list-block">
             {recentOrders.map((order) => (
               <li key={order.id}>
@@ -40,19 +44,19 @@ function ShopDashboards() {
                   <strong>{order.id}</strong>
                   <small>{order.customer}</small>
                 </div>
-                <span>{order.status}</span>
+                <span>{t(order.status)}</span>
               </li>
             ))}
           </ul>
         </section>
 
         <section className="panel-card">
-          <h3>Inventory snapshot</h3>
+          <h3>{t('Inventory snapshot')}</h3>
           <ul className="list-block compact-list">
-            <li><span>Habesha Kemis</span><strong>18</strong></li>
-            <li><span>Tibeb Fabric</span><strong>24</strong></li>
-            <li><span>Netela Wrap</span><strong>12</strong></li>
-            <li><span>Accessories</span><strong>7</strong></li>
+            <li><span>{t('Habesha Kemis')}</span><strong>18</strong></li>
+            <li><span>{t('Tibeb Fabric')}</span><strong>24</strong></li>
+            <li><span>{t('Netela Wrap')}</span><strong>12</strong></li>
+            <li><span>{t('Accessories')}</span><strong>7</strong></li>
           </ul>
         </section>
       </div>

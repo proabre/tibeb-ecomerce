@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import ProductViewer from '../Components/ProductViewer.jsx';
+import { useLanguage } from '../useLanguage.js';
 
 function formatETB(value) {
   return new Intl.NumberFormat('en-ET', {
@@ -11,6 +12,7 @@ function formatETB(value) {
 }
 
 function ProductDetail({ products, addToCart }) {
+  const { t } = useLanguage();
   const { slug } = useParams();
   const product = useMemo(
     () => products.find((entry) => entry.slug === slug),
@@ -25,9 +27,9 @@ function ProductDetail({ products, addToCart }) {
   if (!product) {
     return (
       <div className="page-block empty-state">
-        <h3>Product not found.</h3>
+        <h3>{t('Product not found.')}</h3>
         <Link to="/products" className="primary-button">
-          Back to products
+          {t('Back to products')}
         </Link>
       </div>
     );
@@ -44,14 +46,14 @@ function ProductDetail({ products, addToCart }) {
       <div className="detail-content">
         <span className="eyebrow accent">{product.shop}</span>
         <h1>{product.name}</h1>
-        <div className="detail-rating">★ {product.rating} · {product.stock} in stock</div>
+        <div className="detail-rating">★ {product.rating} · {product.stock} {t('in stock')}</div>
 
         <p className="detail-description">{product.description}</p>
 
         <div className="detail-price">{formatETB(selectedVariant?.price ?? product.price)}</div>
 
         <div className="variant-picker">
-          <span className="label">Choose variant</span>
+          <span className="label">{t('Choose variant')}</span>
           <div className="variant-options">
             {product.variants.map((variant) => (
               <button
@@ -72,27 +74,27 @@ function ProductDetail({ products, addToCart }) {
             className="primary-button"
             onClick={() => selectedVariant && addToCart(product, selectedVariant)}
             disabled={!product.orderable}
-            title={!product.orderable ? 'This sample product is not listed by a seller yet' : undefined}
+            title={!product.orderable ? t('This sample product is not listed by a seller yet') : undefined}
           >
-            {product.orderable ? 'Add to cart' : 'Preview only'}
+            {t(product.orderable ? 'Add to cart' : 'Preview only')}
           </button>
           <Link to="/products" className="secondary-button">
-            Continue shopping
+            {t('Continue shopping')}
           </Link>
         </div>
 
         <div className="info-grid">
           <div>
-            <span>Material</span>
+            <span>{t('Material')}</span>
             <strong>{product.material}</strong>
           </div>
           <div>
-            <span>Craftsmanship</span>
+            <span>{t('Craftsmanship')}</span>
             <strong>{product.craftsmanship}</strong>
           </div>
           <div>
-            <span>Category</span>
-            <strong>{product.category}</strong>
+            <span>{t('Category')}</span>
+            <strong>{t(product.category)}</strong>
           </div>
         </div>
       </div>

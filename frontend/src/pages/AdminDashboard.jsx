@@ -1,3 +1,5 @@
+import { useLanguage } from '../useLanguage.js';
+
 const pendingShops = [
   { name: 'Aster Threads', owner: 'Selam Bekele', city: 'Addis Ababa' },
   { name: 'Nefse Atelier', owner: 'Marta Haile', city: 'Dire Dawa' },
@@ -16,19 +18,21 @@ const stats = [
 ];
 
 function AdminDashboard() {
+  const { t } = useLanguage();
+
   return (
     <div className="page-block">
       <div className="section-heading inline">
         <div>
-          <span className="eyebrow">Admin dashboard</span>
-          <h2>Marketplace overview</h2>
+          <span className="eyebrow">{t('Admin dashboard')}</span>
+          <h2>{t('Marketplace overview')}</h2>
         </div>
       </div>
 
       <div className="stats-grid">
         {stats.map((stat) => (
           <div key={stat.label} className="stat-card">
-            <span>{stat.label}</span>
+            <span>{t(stat.label)}</span>
             <strong>{stat.value}</strong>
           </div>
         ))}
@@ -36,7 +40,7 @@ function AdminDashboard() {
 
       <div className="dashboard-grid">
         <section className="panel-card">
-          <h3>Pending shop applications</h3>
+          <h3>{t('Pending shop applications')}</h3>
           <ul className="list-block">
             {pendingShops.map((shop) => (
               <li key={shop.name}>
@@ -51,7 +55,7 @@ function AdminDashboard() {
         </section>
 
         <section className="panel-card">
-          <h3>Pending products</h3>
+          <h3>{t('Pending products')}</h3>
           <ul className="list-block">
             {pendingProducts.map((product) => (
               <li key={product.name}>
@@ -60,7 +64,7 @@ function AdminDashboard() {
                   <small>{product.shop}</small>
                 </div>
                 <button type="button" className="text-button">
-                  Review
+                  {t('Review')}
                 </button>
               </li>
             ))}
