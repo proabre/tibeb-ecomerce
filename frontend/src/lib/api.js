@@ -125,10 +125,20 @@ export async function createOrder(payload) {
   return data;
 }
 
-export async function initiatePayment(orderId, idempotencyKey) {
+export async function getMyOrders() {
+  const { data } = await api.get('/api/orders');
+  return data.orders ?? [];
+}
+
+export async function getMyOrderById(orderId) {
+  const { data } = await api.get(`/api/orders/${orderId}`);
+  return data.order;
+}
+
+export async function initiatePayment(orderId, idempotencyKey, paymentMethod) {
   const { data } = await api.post(
     `/api/payments/orders/${orderId}/initiate`,
-    {},
+    paymentMethod,
     {
       headers: { 'Idempotency-Key': idempotencyKey },
     },

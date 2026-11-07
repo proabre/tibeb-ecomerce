@@ -8,17 +8,39 @@ const isDevelopmentPaymentEnabled = () =>
   process.env.NODE_ENV !== "production" &&
   process.env.ENABLE_DEV_PAYMENTS === "true";
 
+const bankInstitutions = [
+  "commercial_bank_of_ethiopia",
+  "bank_of_abyssinia",
+  "awash_bank",
+  "dashen_bank",
+];
+
 // Customer initiates a payment for an existing order.
 const initiatePayment = asyncHandler(async (req, res) => {
   if (!isDevelopmentPaymentEnabled()) {
     return res.status(503).json({
-      message:
-        "Payment checkout is not configured. Telebirr merchant integration is required.",
+      message: "Payment providers are not configured for live checkout.",
     });
   }
 
   const { orderId } = req.params;
+  const { provider, method, institution } = req.body ?? {};
   const idempotencyKey = req.get("Idempotency-Key");
+
+  const isTelebirr =
+    provider === "telebirr" &&
+    method === "mobile_money" &&
+    institution == null;
+  const isSupportedBank =
+    provider === "bank_gateway" &&
+    method === "bank_transfer" &&
+    bankInstitutions.includes(institution);
+
+  if (!isTelebirr && !isSupportedBank) {
+    return res.status(400).json({
+      message: "Select a supported sample payment method.",
+    });
+  }
 
   if (!mongoose.isValidObjectId(orderId)) {
     return res.status(400).json({ message: "Invalid order ID." });
@@ -41,7 +63,10 @@ const initiatePayment = asyncHandler(async (req, res) => {
   if (previousPayment) {
     if (
       previousPayment.customerId.toString() !== req.user._id.toString() ||
-      previousPayment.orderId.toString() !== orderId
+      previousPayment.orderId.toString() !== orderId ||
+      previousPayment.provider !== provider ||
+      previousPayment.method !== method ||
+      (previousPayment.institution ?? null) !== (institution ?? null)
     ) {
       return res.status(409).json({
         message: "This idempotency key has already been used.",
@@ -83,6 +108,16 @@ const initiatePayment = asyncHandler(async (req, res) => {
   });
 
   if (pendingPayment) {
+    if (
+      pendingPayment.provider !== provider ||
+      pendingPayment.method !== method ||
+      (pendingPayment.institution ?? null) !== (institution ?? null)
+    ) {
+      return res.status(409).json({
+        message: "A payment using a different method is already in progress.",
+      });
+    }
+
     return res.status(200).json({
       message: "A payment is already in progress.",
       payment: pendingPayment,
@@ -92,8 +127,9 @@ const initiatePayment = asyncHandler(async (req, res) => {
   const payment = await Payment.create({
     orderId: order._id,
     customerId: req.user._id,
-    provider: "other_gateway",
-    method: "other",
+    provider,
+    method,
+    institution: institution ?? null,
     merchantReference: `TIB-DEV-${Date.now()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`,
     amountCents: order.totalCents,
     currency: "ETB",
@@ -111,10 +147,10 @@ const initiatePayment = asyncHandler(async (req, res) => {
   await order.save();
 
   return res.status(201).json({
-    message: "Development payment initiated.",
+    message: "Sample payment initiated.",
     payment,
     instructions:
-      "Use the development confirmation endpoint to simulate payment. This is not a real payment.",
+      "Use the development confirmation endpoint to simulate payment. No money is transferred.",
   });
 });
 

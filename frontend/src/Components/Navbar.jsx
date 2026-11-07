@@ -5,7 +5,6 @@ import { useLanguage } from "../useLanguage.js";
 const navItems = [
   { label: "Home", to: "/" },
   { label: "Products", to: "/products" },
-  { label: "Orders", to: "/orders" },
   { label: "Admin", to: "/admin" },
   { label: "Seller", to: "/shop" },
 ];
@@ -30,7 +29,7 @@ function Navbar({
       </div>
 
       <nav className="main-nav" aria-label={t("Main navigation")}>
-        {navItems.map((item) => (
+        {[...navItems.slice(0, 2), ...(user ? [{ label: "Orders", to: "/orders" }] : []), ...navItems.slice(2)].map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

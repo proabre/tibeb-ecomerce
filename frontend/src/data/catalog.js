@@ -317,4 +317,7 @@ export const categoryLabels = {
   accessories: 'Accessories',
   menswear: 'Menswear',
   custom: 'Custom',
+  couples: 'Couples',
+  wedding: 'Wedding',
+  christening: 'Christening',
 };

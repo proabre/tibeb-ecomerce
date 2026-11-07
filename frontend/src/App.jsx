@@ -11,6 +11,7 @@ import Products from './pages/Products.jsx';
 import ProductDetail from './pages/ProductDetail.jsx';
 import Cart from './pages/Cart.jsx';
 import Order from './pages/Order.jsx';
+import Orders from './pages/Orders.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import ShopDashboards from './pages/ShopDashboards.jsx';
 import {
@@ -33,19 +34,6 @@ import {
   registerUser,
   updateCartItem,
 } from './lib/api.js';
-
-const sampleOrder = {
-  id: 'TIB-2401',
-  total: 8420,
-  status: 'processing',
-  timeline: [
-    { label: 'Order placed', date: 'April 10, 2026', completed: true },
-    { label: 'Payment confirmed', date: 'April 10, 2026', completed: true },
-    { label: 'Seller preparing', date: 'April 11, 2026', completed: true },
-    { label: 'Out for delivery', date: 'Pending', completed: false },
-    { label: 'Delivered', date: 'Pending', completed: false },
-  ],
-};
 
 const formatPrice = (cents) => Math.round(cents / 100);
 
@@ -108,6 +96,7 @@ function App() {
   );
   const [products, setProducts] = useState(productCatalog);
   const [user, setUser] = useState(null);
+  const [isSessionLoading, setIsSessionLoading] = useState(true);
   const [authMode, setAuthMode] = useState('login');
   const [isAuthOpen, setIsAuthOpen] = useState(oauthResult === 'error');
   const [authForm, setAuthForm] = useState({
@@ -126,7 +115,6 @@ function App() {
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [cartError, setCartError] = useState('');
-  const [latestOrder, setLatestOrder] = useState(null);
   const [cart, setCart] = useState([]);
 
   const refreshCart = async () => {
@@ -149,6 +137,8 @@ function App() {
           setUser(null);
           setCart([]);
         }
+      } finally {
+        if (isMounted) setIsSessionLoading(false);
       }
 
       if (isMounted && profile) {
@@ -355,7 +345,11 @@ function App() {
     }
   };
 
-  const handleCheckout = async (shippingAddress, customerNote = '') => {
+  const handleCheckout = async (
+    shippingAddress,
+    customerNote = '',
+    paymentMethod,
+  ) => {
     if (!user) {
       setAuthMode('login');
       setAuthError(t('Please sign in to place an order.'));
@@ -365,7 +359,11 @@ function App() {
 
     const { order } = await createOrder({ shippingAddress, customerNote });
     setCart([]);
-    const payment = await initiatePayment(order._id, `tibeb-${Date.now()}`);
+    const payment = await initiatePayment(
+      order._id,
+      `tibeb-${Date.now()}`,
+      paymentMethod,
+    );
     const confirmation = await confirmDevelopmentPayment(payment.payment._id, 'success');
 
     const nextOrder = confirmation.order || order;
@@ -383,7 +381,6 @@ function App() {
       ],
     };
 
-    setLatestOrder(preparedOrder);
     return preparedOrder;
   };
 
@@ -437,7 +434,34 @@ function App() {
                 />
               }
             />
-            <Route path="/orders" element={<Order order={latestOrder ?? sampleOrder} />} />
+            <Route
+              path="/orders"
+              element={
+                <Orders
+                  user={user}
+                  isSessionLoading={isSessionLoading}
+                  onAuthOpen={(mode) => {
+                    setAuthMode(mode);
+                    setAuthError('');
+                    setIsAuthOpen(true);
+                  }}
+                />
+              }
+            />
+            <Route
+              path="/orders/:id"
+              element={
+                <Order
+                  user={user}
+                  isSessionLoading={isSessionLoading}
+                  onAuthOpen={(mode) => {
+                    setAuthMode(mode);
+                    setAuthError('');
+                    setIsAuthOpen(true);
+                  }}
+                />
+              }
+            />
             <Route
               path="/admin"
               element={

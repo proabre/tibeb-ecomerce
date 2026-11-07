@@ -20,10 +20,43 @@ const emptyShippingForm = {
   customerNote: '',
 };
 
+const paymentOptions = [
+  { id: 'telebirr', label: 'Telebirr', provider: 'telebirr', method: 'mobile_money' },
+  {
+    id: 'commercial_bank_of_ethiopia',
+    label: 'Commercial Bank of Ethiopia',
+    provider: 'bank_gateway',
+    method: 'bank_transfer',
+    institution: 'commercial_bank_of_ethiopia',
+  },
+  {
+    id: 'bank_of_abyssinia',
+    label: 'Bank of Abyssinia',
+    provider: 'bank_gateway',
+    method: 'bank_transfer',
+    institution: 'bank_of_abyssinia',
+  },
+  {
+    id: 'awash_bank',
+    label: 'Awash Bank',
+    provider: 'bank_gateway',
+    method: 'bank_transfer',
+    institution: 'awash_bank',
+  },
+  {
+    id: 'dashen_bank',
+    label: 'Dashen Bank',
+    provider: 'bank_gateway',
+    method: 'bank_transfer',
+    institution: 'dashen_bank',
+  },
+];
+
 function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
   const { t } = useLanguage();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [shippingAddress, setShippingAddress] = useState(emptyShippingForm);
+  const [selectedPaymentOption, setSelectedPaymentOption] = useState('telebirr');
   const [checkoutError, setCheckoutError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -58,8 +91,21 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
         deliveryInstructions: shippingAddress.deliveryInstructions,
       };
 
-      await onCheckout(payload, shippingAddress.customerNote);
-      navigate('/orders');
+      const selectedOption = paymentOptions.find(
+        ({ id }) => id === selectedPaymentOption,
+      );
+      const order = await onCheckout(
+        payload,
+        shippingAddress.customerNote,
+        {
+          provider: selectedOption.provider,
+          method: selectedOption.method,
+          ...(selectedOption.institution
+            ? { institution: selectedOption.institution }
+            : {}),
+        },
+      );
+      navigate(order?._id ? `/orders/${order._id}` : '/orders');
     } catch (error) {
       setCheckoutError(error?.response?.data?.message || t('Checkout failed. Please try again.'));
     } finally {
@@ -210,6 +256,25 @@ function Cart({ cart, subtotal, updateQuantity, removeFromCart, onCheckout }) {
                 onChange={(event) => setShippingAddress((current) => ({ ...current, customerNote: event.target.value }))}
               />
             </label>
+
+            <fieldset className="checkout-payment-options">
+              <legend>{t('Payment method')}</legend>
+              {paymentOptions.map(({ id, label }) => (
+                <label key={id} className="checkout-payment-option">
+                  <input
+                    type="radio"
+                    name="payment-option"
+                    value={id}
+                    checked={selectedPaymentOption === id}
+                    onChange={() => setSelectedPaymentOption(id)}
+                  />
+                  <span>{label}</span>
+                </label>
+              ))}
+              <p role="note">
+                {t('Sample checkout only: no money is transferred. Live provider integration is not configured.')}
+              </p>
+            </fieldset>
 
             {checkoutError ? <div className="auth-error">{checkoutError}</div> : null}
 

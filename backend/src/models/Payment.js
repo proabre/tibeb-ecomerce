@@ -28,6 +28,17 @@ const paymentSchema = new mongoose.Schema(
       required: true,
     },
 
+    institution: {
+      type: String,
+      enum: [
+        "commercial_bank_of_ethiopia",
+        "bank_of_abyssinia",
+        "awash_bank",
+        "dashen_bank",
+      ],
+      default: null,
+    },
+
     merchantReference: {
       type: String,
       required: true,

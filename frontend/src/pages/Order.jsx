@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import OrderTimeline from '../Components/OrderTimeline.jsx';
+import { getMyOrderById } from '../lib/api.js';
 import { useLanguage } from '../useLanguage.js';
 
 function formatETB(value) {
@@ -9,8 +12,74 @@ function formatETB(value) {
   }).format(value);
 }
 
-function Order({ order }) {
+function Order({ user, isSessionLoading, onAuthOpen }) {
   const { t } = useLanguage();
+  const { id } = useParams();
+  const [order, setOrder] = useState(null);
+  const [loadedOrderId, setLoadedOrderId] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isSessionLoading) return undefined;
+
+    if (!user || !id) return undefined;
+
+    let active = true;
+
+    getMyOrderById(id)
+      .then((result) => {
+        if (active) {
+          setOrder(result);
+          setError('');
+          setLoadedOrderId(id);
+        }
+      })
+      .catch((requestError) => {
+        if (active) {
+          setError(
+            requestError?.response?.data?.message ||
+            t('Could not load this order. Please try again.'),
+          );
+          setLoadedOrderId(id);
+        }
+      })
+      ;
+
+    return () => {
+      active = false;
+    };
+  }, [id, isSessionLoading, user, t]);
+
+  if (isSessionLoading) {
+    return <div className="orders-feedback" role="status">{t('Checking your account...')}</div>;
+  }
+
+  if (!user) {
+    return (
+      <section className="orders-empty-state">
+        <span className="eyebrow accent">{t('Order tracking')}</span>
+        <h1>{t('Sign in to see your orders')}</h1>
+        <p>{t('Your purchases and delivery progress will appear here after you sign in.')}</p>
+        <button type="button" className="primary-button" onClick={() => onAuthOpen('login')}>
+          {t('Sign in')}
+        </button>
+      </section>
+    );
+  }
+
+  if (loadedOrderId !== id) {
+    return <div className="orders-feedback" role="status">{t('Loading order details...')}</div>;
+  }
+
+  if (error || !order) {
+    return (
+      <section className="orders-empty-state">
+        <h1>{error || t('Order not found.')}</h1>
+        <Link to="/orders" className="secondary-button">{t('Back to your orders')}</Link>
+      </section>
+    );
+  }
+
   const orderId = order?.orderNumber || order?.id || 'TIB-0000';
   const subtotal = order?.subtotalCents != null
     ? order.subtotalCents / 100
