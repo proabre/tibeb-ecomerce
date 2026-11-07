@@ -79,8 +79,8 @@ function ProductDetail({ products, addToCart }) {
           >
             {t(product.orderable ? 'Add to cart' : 'Preview only')}
           </button>
-          <Link to="/products" className="secondary-button">
-            {t('Continue shopping')}
+          <Link to="/checkout" className="secondary-button">
+            {t('Continue to checkout')}
           </Link>
         </div>
 

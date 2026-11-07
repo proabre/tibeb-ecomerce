@@ -43,6 +43,20 @@ const shippingAddressSchema = new mongoose.Schema(
       maxlength: 500,
     },
 
+    deliveryProvider: {
+      type: String,
+      enum: [
+        "fedex",
+        "dhl",
+        "ethioposta",
+        "deliver_addis",
+        "ahununu",
+        "local_courier",
+      ],
+      default: "local_courier",
+      required: true,
+    },
+
     deliveryInstructions: {
       type: String,
       trim: true,

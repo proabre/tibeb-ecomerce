@@ -12,6 +12,15 @@ function formatETB(value) {
   }).format(value);
 }
 
+const deliveryProviderLabels = {
+  fedex: 'FedEx',
+  dhl: 'DHL Express',
+  ethioposta: 'Ethiopian Postal Service (Ethioposta)',
+  deliver_addis: 'Deliver Addis',
+  ahununu: 'Ahununu Courier',
+  local_courier: 'Local courier (seller-arranged)',
+};
+
 function Order({ user, isSessionLoading, onAuthOpen }) {
   const { t } = useLanguage();
   const { id } = useParams();
@@ -193,6 +202,11 @@ function Order({ user, isSessionLoading, onAuthOpen }) {
                   .filter(Boolean)
                   .join(', ')}
               </span>
+              {deliveryProviderLabels[shippingAddress.deliveryProvider] ? (
+                <span>
+                  {t('Delivery service')}: {t(deliveryProviderLabels[shippingAddress.deliveryProvider])}
+                </span>
+              ) : null}
             </section>
           ) : null}
         </div>

@@ -60,6 +60,29 @@ const createOrder = asyncHandler(async (req, res) => {
     }
   }
 
+  const deliveryProviders = [
+    "fedex",
+    "dhl",
+    "ethioposta",
+    "deliver_addis",
+    "ahununu",
+    "local_courier",
+  ];
+
+  if (
+    shippingAddress?.deliveryProvider != null &&
+    !deliveryProviders.includes(shippingAddress.deliveryProvider)
+  ) {
+    return res.status(400).json({
+      message: "Select a supported delivery service.",
+    });
+  }
+
+  const validatedShippingAddress = {
+    ...shippingAddress,
+    deliveryProvider: shippingAddress?.deliveryProvider ?? "local_courier",
+  };
+
   if (typeof customerNote !== "string" || customerNote.length > 1000) {
     return res.status(400).json({
       message: "Invalid customer note.",
@@ -241,7 +264,7 @@ const createOrder = asyncHandler(async (req, res) => {
         orderNumber,
         customerId: req.user._id,
         sellerOrders: Array.from(sellerOrderMap.values()),
-        shippingAddress,
+        shippingAddress: validatedShippingAddress,
         currency: "ETB",
         subtotalCents,
         deliveryFeeCents,

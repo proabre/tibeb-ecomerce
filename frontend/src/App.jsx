@@ -10,6 +10,7 @@ import Home from './pages/Home.jsx';
 import Products from './pages/Products.jsx';
 import ProductDetail from './pages/ProductDetail.jsx';
 import Cart from './pages/Cart.jsx';
+import Checkout from './pages/Checkout.jsx';
 import Order from './pages/Order.jsx';
 import Orders from './pages/Orders.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
@@ -430,6 +431,15 @@ function App() {
                   subtotal={subtotal}
                   updateQuantity={updateQuantity}
                   removeFromCart={removeFromCart}
+                />
+              }
+            />
+            <Route
+              path="/checkout"
+              element={
+                <Checkout
+                  cart={cart}
+                  subtotal={subtotal}
                   onCheckout={handleCheckout}
                 />
               }
