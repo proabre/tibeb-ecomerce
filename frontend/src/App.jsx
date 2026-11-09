@@ -486,7 +486,7 @@ function App() {
               }
             />
             <Route
-              path="/shop"
+              path="/shop/*"
               element={
                 <ShopDashboards
                   user={user}

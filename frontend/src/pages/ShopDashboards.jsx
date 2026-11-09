@@ -1,4 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+  Banknote,
+  ClipboardList,
+  LayoutDashboard,
+  PackagePlus,
+  Store,
+  WalletCards,
+} from 'lucide-react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useLanguage } from '../useLanguage.js';
 import {
   createSellerProduct,
@@ -71,8 +80,24 @@ const payoutBankLabels = {
   amhara_bank: 'Amhara Bank',
 };
 
+const activeOrderStatuses = new Set([
+  'pending',
+  'accepted',
+  'preparing',
+  'ready_for_pickup',
+  'dispatched',
+]);
+
 function ShopDashboards({ user, categories, onAuthOpen }) {
   const { t } = useLanguage();
+  const { pathname, hash } = useLocation();
+  const normalizedPathname = pathname.replace(/\/+$/, '');
+  const dashboardPage =
+    normalizedPathname === '/shop/payouts'
+      ? 'payouts'
+      : normalizedPathname === '/shop/orders'
+        ? 'orders'
+        : 'overview';
   const [form, setForm] = useState(initialForm);
   const [frontImage, setFrontImage] = useState(null);
   const [backImage, setBackImage] = useState(null);
@@ -118,6 +143,14 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
     },
     [imagePreviews, videoPreviews],
   );
+
+  useEffect(() => {
+    if (!hash) return;
+    document.getElementById(hash.slice(1))?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [hash, pathname]);
 
   useEffect(() => {
     if (!isSeller) return undefined;
@@ -189,54 +222,47 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
     };
   }, [isSeller, t]);
 
+  const activeOrders = useMemo(
+    () => (orders || []).filter(({ sellerOrder }) => activeOrderStatuses.has(sellerOrder.status)),
+    [orders],
+  );
+
   const dashboardStats = useMemo(() => {
-    const activeStatuses = new Set([
-      'pending',
-      'accepted',
-      'preparing',
-      'ready_for_pickup',
-      'dispatched',
-    ]);
-    const activeOrders = (orders || []).filter(({ sellerOrder }) =>
-      activeStatuses.has(sellerOrder.status),
-    );
     const paidOrders = (orders || []).filter(({ paymentStatus }) => paymentStatus === 'paid');
     const paidEarningsCents = paidOrders.reduce(
       (total, { sellerOrder }) => total + (sellerOrder.sellerEarningsCents || 0),
       0,
     );
-    const deliveredEarningsCents = paidOrders
-      .filter(({ sellerOrder }) => sellerOrder.status === 'delivered')
-      .reduce((total, { sellerOrder }) => total + (sellerOrder.sellerEarningsCents || 0), 0);
     const pendingEarningsCents = paidOrders
       .filter(({ sellerOrder }) => sellerOrder.settlementStatus !== 'paid')
       .reduce((total, { sellerOrder }) => total + (sellerOrder.sellerEarningsCents || 0), 0);
-    const lowStockCount = (products || []).filter(
-      (product) =>
-        product.status === 'active' &&
-        product.variants?.some((variant) => variant.stock <= 5),
-    ).length;
-    const inventoryUnits = (products || []).reduce(
-      (total, product) =>
-        total +
-        (product.status === 'active'
-          ? product.variants?.reduce((units, variant) => units + variant.stock, 0) || 0
-          : 0),
-      0,
-    );
-
     return [
-      { label: 'Active orders', value: orders ? activeOrders.length : '—' },
-      { label: 'Awaiting acceptance', value: orders ? activeOrders.filter(({ sellerOrder }) => sellerOrder.status === 'pending').length : '—' },
-      { label: 'Paid earnings', value: orders ? formatETB(paidEarningsCents) : '—' },
-      { label: 'Delivered earnings', value: orders ? formatETB(deliveredEarningsCents) : '—' },
-      { label: 'Pending payout', value: orders ? formatETB(pendingEarningsCents) : '—' },
-      { label: 'Products listed', value: products ? products.filter((product) => product.status === 'active').length : '—' },
-      { label: 'Products awaiting review', value: products ? products.filter((product) => product.status === 'draft').length : '—' },
-      { label: 'Inventory units', value: products ? inventoryUnits : '—' },
-      { label: 'Low-stock products', value: products ? lowStockCount : '—' },
+      {
+        label: 'Paid earnings',
+        value: orders ? formatETB(paidEarningsCents) : '—',
+        detail: 'From paid orders',
+        Icon: Banknote,
+      },
+      {
+        label: 'Active orders',
+        value: orders ? activeOrders.length : '—',
+        detail: 'Ready for fulfillment',
+        Icon: ClipboardList,
+      },
+      {
+        label: 'Products listed',
+        value: products ? products.filter((product) => product.status === 'active').length : '—',
+        detail: 'Live in the marketplace',
+        Icon: Store,
+      },
+      {
+        label: 'Pending payout',
+        value: orders ? formatETB(pendingEarningsCents) : '—',
+        detail: 'Awaiting settlement',
+        Icon: WalletCards,
+      },
     ];
-  }, [orders, products]);
+  }, [activeOrders, orders, products]);
 
   const updateVariant = (variantId, field, value) => {
     setForm((current) => ({
@@ -472,23 +498,141 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
   }
 
   return (
-    <div className="seller-dashboard page-block">
-      <div className="section-heading">
-        <span className="eyebrow">{t('Seller dashboard')}</span>
-        <h2>{t('Manage your shop')}</h2>
-        <p>{t('Add product details, photos, and the options customers can order.')}</p>
-      </div>
+    <div className="seller-dashboard-shell">
+      <aside className="seller-dashboard-sidebar">
+        <Link className="seller-dashboard-brand" to="/" aria-label="Tibeb home">
+          <span className="seller-brand-mark">T</span>
+          <span className="seller-brand-name">
+            Tibeb
+            <small>{t('Seller studio')}</small>
+          </span>
+        </Link>
 
-      <section className="seller-overview" aria-label={t('Shop performance')}>
-        {dashboardStats.map((stat) => (
-          <article className="seller-stat-card" key={stat.label}>
-            <span>{t(stat.label)}</span>
-            <strong>{stat.value}</strong>
-          </article>
-        ))}
-      </section>
+        <span className="seller-sidebar-label">{t('Workspace')}</span>
+        <nav className="seller-dashboard-nav" aria-label={t('Seller dashboard sections')}>
+          <NavLink to="/shop" end>
+            <LayoutDashboard size={17} aria-hidden="true" />
+            <span>{t('Overview')}</span>
+          </NavLink>
+          <NavLink to="/shop/payouts">
+            <WalletCards size={17} aria-hidden="true" />
+            <span>{t('Payout settings')}</span>
+          </NavLink>
+          <NavLink to="/shop/orders">
+            <ClipboardList size={17} aria-hidden="true" />
+            <span>{t('Active orders')}</span>
+          </NavLink>
+          <Link to="/shop#seller-post-product">
+            <PackagePlus size={17} aria-hidden="true" />
+            <span>{t('Post a product')}</span>
+          </Link>
+        </nav>
 
-      <section className="seller-product-panel seller-payout-panel">
+        <div className="seller-sidebar-note">
+          <span className="seller-sidebar-note-mark" aria-hidden="true">✦</span>
+          <strong>{t('Made for your shop')}</strong>
+          <p>{t('Your shop, orders, listings, and payouts in one place.')}</p>
+        </div>
+      </aside>
+
+      <div className="seller-dashboard">
+        <header className="seller-dashboard-heading">
+          <div>
+            <span className="seller-dashboard-kicker">{t('Seller dashboard')}</span>
+            <h1>
+              {t(
+                dashboardPage === 'payouts'
+                  ? 'Payout settings'
+                  : dashboardPage === 'orders'
+                    ? 'Active orders'
+                    : 'Manage your shop',
+              )}
+            </h1>
+            <p>
+              {t('Welcome back')}, <strong>{user.name}</strong>.{' '}
+              {t(
+                dashboardPage === 'payouts'
+                  ? 'Manage where your seller earnings are sent.'
+                  : dashboardPage === 'orders'
+                    ? 'Review and fulfill your latest customer orders.'
+                    : 'Add product details, photos, and the options customers can order.',
+              )}
+            </p>
+          </div>
+          {dashboardPage !== 'overview' ? (
+            <Link className="seller-dashboard-hero-action" to="/shop">
+              <span aria-hidden="true">←</span> {t('Back to overview')}
+            </Link>
+          ) : (
+            <a className="seller-dashboard-hero-action" href="#seller-post-product">
+              <span aria-hidden="true">＋</span> {t('Post a product')}
+            </a>
+          )}
+        </header>
+
+        {dashboardPage === 'overview' ? (
+        <section
+          className="seller-manage-section"
+          id="seller-overview"
+          aria-label={t('Shop performance')}
+        >
+          <div className="seller-overview">
+            {dashboardStats.map((stat) => (
+              <article className="seller-stat-card" key={stat.label}>
+                <div className="seller-stat-card-top">
+                  <span>{t(stat.label)}</span>
+                  <span className="seller-stat-icon"><stat.Icon size={18} aria-hidden="true" /></span>
+                </div>
+                <strong>{stat.value}</strong>
+                <small>{t(stat.detail)}</small>
+              </article>
+            ))}
+          </div>
+
+          <section className="seller-product-panel seller-listings-panel">
+          <div className="seller-panel-heading">
+            <div>
+              <h3>{t('Your products')}</h3>
+              <p>{t('Track each listing through admin review.')}</p>
+            </div>
+            <span className="seller-product-count">{products?.length || 0}</span>
+          </div>
+          {products === null ? (
+            <p>{t('Loading your products...')}</p>
+          ) : products.length ? (
+            <div className="seller-product-list">
+              {products.map((product) => (
+                <article className="seller-product-item" key={product._id}>
+                  {product.images?.[0] ? (
+                    <img src={product.images[0]} alt="" />
+                  ) : (
+                    <div className="seller-product-placeholder" aria-hidden="true" />
+                  )}
+                  <div className="seller-product-info">
+                    <strong>{product.title}</strong>
+                    <span>{t(categories[product.category] || product.category)}</span>
+                  </div>
+                  <span className={`seller-product-status status-${product.status}`}>
+                    {t(product.status)}
+                  </span>
+                  {product.rejectionReason ? <p>{product.rejectionReason}</p> : null}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p>{t('You have not posted any products yet.')}</p>
+          )}
+          </section>
+        </section>
+        ) : null}
+
+        {dashboardPage !== 'overview' ? (
+        <div className="seller-dashboard-secondary-grid seller-dashboard-secondary-grid--single">
+          {dashboardPage === 'payouts' ? (
+          <section
+            className="seller-product-panel seller-payout-panel"
+            id="seller-payout-account"
+          >
         <div className="seller-panel-heading">
           <div>
             <h3>{t('Chapa payout account')}</h3>
@@ -625,27 +769,28 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
         </p>
         {payoutSuccess ? <div className="seller-success" role="status">{payoutSuccess}</div> : null}
         {payoutError ? <div className="auth-error" role="alert">{payoutError}</div> : null}
-      </section>
+          </section>
+          ) : null}
 
-      <section className="seller-product-panel seller-orders-panel">
+          {dashboardPage === 'orders' ? (
+          <section
+            className="seller-product-panel seller-orders-panel"
+            id="seller-active-orders"
+          >
         <div className="seller-panel-heading">
           <div>
             <h3>{t('Active orders')}</h3>
             <p>{t('Latest customer orders that need fulfillment.')}</p>
           </div>
+          <span className="seller-product-count">
+            {orders === null ? '—' : activeOrders.length}
+          </span>
         </div>
         {orders === null ? (
           <p>{t('Loading your orders...')}</p>
-        ) : orders.filter(({ sellerOrder }) =>
-          ['pending', 'accepted', 'preparing', 'ready_for_pickup', 'dispatched'].includes(sellerOrder.status),
-        ).length ? (
+        ) : activeOrders.length ? (
           <div className="seller-product-list">
-            {orders
-              .filter(({ sellerOrder }) =>
-                ['pending', 'accepted', 'preparing', 'ready_for_pickup', 'dispatched'].includes(sellerOrder.status),
-              )
-              .slice(0, 5)
-              .map((order) => (
+            {activeOrders.map((order) => (
                 <article className="seller-order-item" key={`${order.orderId}-${order.sellerOrder._id}`}>
                   <div className="seller-product-info">
                     <strong>{order.orderNumber}</strong>
@@ -672,16 +817,23 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
                     </button>
                   ) : null}
                 </article>
-              ))}
+            ))}
           </div>
         ) : (
           <p>{t('No active orders right now.')}</p>
         )}
         {success ? <div className="seller-success" role="status">{success}</div> : null}
         {error ? <div className="auth-error" role="alert">{error}</div> : null}
-      </section>
+          </section>
+          ) : null}
+        </div>
+        ) : null}
 
-      <section className="seller-product-panel">
+        {dashboardPage === 'overview' ? (
+        <section
+          className="seller-product-panel seller-create-product-panel"
+          id="seller-post-product"
+        >
         <div className="seller-panel-heading">
           <div>
             <h3>{t('Post a product')}</h3>
@@ -933,42 +1085,10 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
             {t(isSubmitting ? 'Submitting product...' : 'Submit product for review')}
           </button>
         </form>
-      </section>
+        </section>
+        ) : null}
 
-      <section className="seller-product-panel">
-        <div className="seller-panel-heading">
-          <div>
-            <h3>{t('Your products')}</h3>
-            <p>{t('Track each listing through admin review.')}</p>
-          </div>
-          <span className="seller-product-count">{products?.length || 0}</span>
-        </div>
-        {products === null ? (
-          <p>{t('Loading your products...')}</p>
-        ) : products.length ? (
-          <div className="seller-product-list">
-            {products.map((product) => (
-              <article className="seller-product-item" key={product._id}>
-                {product.images?.[0] ? (
-                  <img src={product.images[0]} alt="" />
-                ) : (
-                  <div className="seller-product-placeholder" aria-hidden="true" />
-                )}
-                <div className="seller-product-info">
-                  <strong>{product.title}</strong>
-                  <span>{t(categories[product.category] || product.category)}</span>
-                </div>
-                <span className={`seller-product-status status-${product.status}`}>
-                  {t(product.status)}
-                </span>
-                {product.rejectionReason ? <p>{product.rejectionReason}</p> : null}
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p>{t('You have not posted any products yet.')}</p>
-        )}
-      </section>
+      </div>
     </div>
   );
 }
