@@ -100,6 +100,21 @@ export async function getSellerOrders() {
   return data.orders ?? [];
 }
 
+export async function getSellerPayoutAccount() {
+  const { data } = await api.get('/api/shops/me/payout-account');
+  return data.payoutAccount ?? null;
+}
+
+export async function saveSellerPayoutAccount(payload) {
+  const { data } = await api.put('/api/shops/me/payout-account', payload);
+  return data.payoutAccount;
+}
+
+export async function removeSellerPayoutAccount() {
+  const { data } = await api.delete('/api/shops/me/payout-account');
+  return data;
+}
+
 export async function updateSellerOrderStatus(orderId, action) {
   const { data } = await api.patch(`/api/orders/seller/my-orders/${orderId}/status`, {
     action,

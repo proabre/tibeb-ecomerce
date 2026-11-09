@@ -1,6 +1,12 @@
 import mongoose from "mongoose";
 import Shop from "../models/Shop.js";
 import User from "../models/User.js";
+import { asyncHandler } from "../../utils/asyncHandler.js";
+import {
+  decryptPayoutAccountNumber,
+  encryptPayoutAccountNumber,
+  normalizePayoutAccount,
+} from "../utils/payoutAccount.js";
 
 const slugify = (value) =>
   value
@@ -142,6 +148,82 @@ export const getMyShop = async (req, res, next) => {
     next(error);
   }
 };
+
+const formatPayoutAccount = (payoutAccount, accountName) =>
+  payoutAccount
+    ? {
+        provider: payoutAccount.provider,
+        method: payoutAccount.method,
+        institution: payoutAccount.institution,
+        accountName,
+        accountNumberLast4: payoutAccount.accountNumberLast4,
+        updatedAt: payoutAccount.updatedAt,
+      }
+    : null;
+
+export const getMyPayoutAccount = asyncHandler(async (req, res) => {
+  const shop = await Shop.findOne({ ownerId: req.user._id }).select(
+    "+payoutAccount.accountNameEncrypted +payoutAccount.accountNumberEncrypted",
+  );
+
+  if (!shop) {
+    return res.status(404).json({ message: "Shop not found." });
+  }
+
+  return res.status(200).json({
+    payoutAccount: formatPayoutAccount(
+      shop.payoutAccount,
+      shop.payoutAccount
+        ? decryptPayoutAccountNumber(
+            shop.payoutAccount.accountNameEncrypted,
+          )
+        : undefined,
+    ),
+  });
+});
+
+export const updateMyPayoutAccount = asyncHandler(async (req, res) => {
+  const normalized = normalizePayoutAccount(req.body);
+
+  if (normalized.error) {
+    return res.status(400).json({ message: normalized.error });
+  }
+
+  const shop = await Shop.findOne({ ownerId: req.user._id });
+
+  if (!shop) {
+    return res.status(404).json({ message: "Shop not found." });
+  }
+
+  const { accountNumber, ...accountDetails } = normalized.value;
+  const { accountName, ...accountDetailsWithoutName } = accountDetails;
+  shop.payoutAccount = {
+    ...accountDetailsWithoutName,
+    accountNameEncrypted: encryptPayoutAccountNumber(accountName),
+    accountNumberEncrypted: encryptPayoutAccountNumber(accountNumber),
+    accountNumberLast4: accountNumber.slice(-4),
+    updatedAt: new Date(),
+  };
+  await shop.save();
+
+  return res.status(200).json({
+    message: "Payout account saved.",
+    payoutAccount: formatPayoutAccount(shop.payoutAccount, accountName),
+  });
+});
+
+export const deleteMyPayoutAccount = asyncHandler(async (req, res) => {
+  const shop = await Shop.findOne({ ownerId: req.user._id });
+
+  if (!shop) {
+    return res.status(404).json({ message: "Shop not found." });
+  }
+
+  shop.payoutAccount = undefined;
+  await shop.save();
+
+  return res.status(200).json({ message: "Payout account removed." });
+});
 
 export const getPendingShops = async (req, res, next) => {
   try {

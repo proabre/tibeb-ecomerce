@@ -37,6 +37,60 @@ const addressSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const payoutAccountSchema = new mongoose.Schema(
+  {
+    provider: {
+      type: String,
+      enum: ["chapa"],
+      required: true,
+    },
+
+    method: {
+      type: String,
+      enum: ["telebirr", "cbe_birr", "bank_transfer"],
+      required: true,
+    },
+
+    institution: {
+      type: String,
+      enum: [
+        "commercial_bank_of_ethiopia",
+        "awash_bank",
+        "cooperative_bank_of_oromia",
+        "enat_bank",
+        "amhara_bank",
+      ],
+      default: null,
+    },
+
+    accountNameEncrypted: {
+      type: String,
+      required: true,
+      select: false,
+    },
+
+    accountNumberEncrypted: {
+      type: String,
+      required: true,
+      select: false,
+    },
+
+    accountNumberLast4: {
+      type: String,
+      required: true,
+      minlength: 2,
+      maxlength: 4,
+    },
+
+    updatedAt: {
+      type: Date,
+      required: true,
+      default: Date.now,
+    },
+  },
+  { _id: false },
+);
+
 const shopSchema = new mongoose.Schema(
   {
     ownerId: {
@@ -135,6 +189,11 @@ const shopSchema = new mongoose.Schema(
       max: 10000,
       validate: Number.isSafeInteger,
       default: DEFAULT_COMMISSION_RATE_BPS,
+    },
+
+    payoutAccount: {
+      type: payoutAccountSchema,
+      default: undefined,
     },
   },
   {

@@ -1037,6 +1037,32 @@
   font-size: 0.9rem;
 }
 
+.seller-payout-saved {
+  display: grid;
+  gap: 5px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(23, 75, 62, 0.035);
+}
+
+.seller-payout-saved span,
+.seller-payout-note,
+.seller-payout-panel label small {
+  color: var(--muted);
+}
+
+.seller-payout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.seller-payout-note {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
 .seller-product-form {
   display: grid;
   gap: 24px;

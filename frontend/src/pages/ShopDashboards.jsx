@@ -3,7 +3,10 @@ import { useLanguage } from '../useLanguage.js';
 import {
   createSellerProduct,
   getSellerOrders,
+  getSellerPayoutAccount,
   getSellerProducts,
+  removeSellerPayoutAccount,
+  saveSellerPayoutAccount,
   updateSellerOrderStatus,
   uploadProductImages,
   uploadProductVideos,
@@ -54,6 +57,20 @@ function formatETB(cents) {
   }).format(cents / 100);
 }
 
+const payoutMethodLabels = {
+  telebirr: 'Telebirr',
+  cbe_birr: 'CBE Birr',
+  bank_transfer: 'Bank account',
+};
+
+const payoutBankLabels = {
+  commercial_bank_of_ethiopia: 'Commercial Bank of Ethiopia',
+  awash_bank: 'Awash Bank',
+  cooperative_bank_of_oromia: 'Cooperative Bank of Oromia',
+  enat_bank: 'Enat Bank',
+  amhara_bank: 'Amhara Bank',
+};
+
 function ShopDashboards({ user, categories, onAuthOpen }) {
   const { t } = useLanguage();
   const [form, setForm] = useState(initialForm);
@@ -63,6 +80,17 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
   const [videos, setVideos] = useState([]);
   const [products, setProducts] = useState(null);
   const [orders, setOrders] = useState(null);
+  const [payoutAccount, setPayoutAccount] = useState(null);
+  const [payoutForm, setPayoutForm] = useState({
+    method: 'telebirr',
+    institution: '',
+    accountName: '',
+    accountNumber: '',
+  });
+  const [isPayoutLoading, setIsPayoutLoading] = useState(true);
+  const [isPayoutSaving, setIsPayoutSaving] = useState(false);
+  const [payoutError, setPayoutError] = useState('');
+  const [payoutSuccess, setPayoutSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [acceptingOrderId, setAcceptingOrderId] = useState(null);
   const [error, setError] = useState('');
@@ -90,6 +118,40 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
     },
     [imagePreviews, videoPreviews],
   );
+
+  useEffect(() => {
+    if (!isSeller) return undefined;
+    let active = true;
+
+    getSellerPayoutAccount()
+      .then((account) => {
+        if (!active) return;
+        setPayoutAccount(account);
+        if (account) {
+          setPayoutForm({
+            method: account.method,
+            institution: account.institution || '',
+            accountName: account.accountName,
+            accountNumber: '',
+          });
+        }
+      })
+      .catch((requestError) => {
+        if (active) {
+          setPayoutError(
+            requestError?.response?.data?.message ||
+              t('Could not load payout details. Please try again.'),
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setIsPayoutLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isSeller, t]);
 
   useEffect(() => {
     if (!isSeller) return undefined;
@@ -335,6 +397,57 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
     }
   };
 
+  const handlePayoutSubmit = async (event) => {
+    event.preventDefault();
+    setPayoutError('');
+    setPayoutSuccess('');
+    setIsPayoutSaving(true);
+
+    try {
+      const account = await saveSellerPayoutAccount({
+        ...payoutForm,
+        institution:
+          payoutForm.method === 'bank_transfer' ? payoutForm.institution : null,
+      });
+      setPayoutAccount(account);
+      setPayoutForm((current) => ({ ...current, accountNumber: '' }));
+      setPayoutSuccess(t('Payout account saved.'));
+    } catch (requestError) {
+      setPayoutError(
+        requestError?.response?.data?.message ||
+          t('Could not save payout account. Please try again.'),
+      );
+    } finally {
+      setIsPayoutSaving(false);
+    }
+  };
+
+  const handlePayoutRemove = async () => {
+    if (!window.confirm(t('Remove saved payout account?'))) return;
+    setPayoutError('');
+    setPayoutSuccess('');
+    setIsPayoutSaving(true);
+
+    try {
+      await removeSellerPayoutAccount();
+      setPayoutAccount(null);
+      setPayoutForm({
+        method: 'telebirr',
+        institution: '',
+        accountName: '',
+        accountNumber: '',
+      });
+      setPayoutSuccess(t('Payout account removed.'));
+    } catch (requestError) {
+      setPayoutError(
+        requestError?.response?.data?.message ||
+          t('Could not remove payout account. Please try again.'),
+      );
+    } finally {
+      setIsPayoutSaving(false);
+    }
+  };
+
   if (!user) {
     return (
       <section className="seller-gate page-block">
@@ -373,6 +486,145 @@ function ShopDashboards({ user, categories, onAuthOpen }) {
             <strong>{stat.value}</strong>
           </article>
         ))}
+      </section>
+
+      <section className="seller-product-panel seller-payout-panel">
+        <div className="seller-panel-heading">
+          <div>
+            <h3>{t('Chapa payout account')}</h3>
+            <p>{t('Add the account where you want to receive future seller payouts.')}</p>
+          </div>
+        </div>
+
+        {payoutAccount ? (
+          <div className="seller-payout-saved">
+            <strong>{t('Current payout destination')}</strong>
+            <span>
+              {t(payoutMethodLabels[payoutAccount.method])}
+              {payoutAccount.institution
+                ? ` · ${t(payoutBankLabels[payoutAccount.institution])}`
+                : ''}{' '}
+              · {payoutAccount.accountName} ·{' '}
+              {t('Account ending in')} {payoutAccount.accountNumberLast4}
+            </span>
+          </div>
+        ) : null}
+        {isPayoutLoading ? <p>{t('Loading payout account...')}</p> : null}
+
+        {!isPayoutLoading ? (
+          <form className="seller-product-form" onSubmit={handlePayoutSubmit}>
+            <div className="seller-form-grid">
+              <label>
+                <span>{t('Payout method')}</span>
+                <select
+                  value={payoutForm.method}
+                  onChange={(event) =>
+                    setPayoutForm((current) => ({
+                      ...current,
+                      method: event.target.value,
+                      institution:
+                        event.target.value === 'bank_transfer'
+                          ? current.institution || 'commercial_bank_of_ethiopia'
+                          : '',
+                    }))
+                  }
+                >
+                  <option value="telebirr">{t('Telebirr')}</option>
+                  <option value="cbe_birr">{t('CBE Birr')}</option>
+                  <option value="bank_transfer">{t('Bank account')}</option>
+                </select>
+              </label>
+
+              {payoutForm.method === 'bank_transfer' ? (
+                <label>
+                  <span>{t('Bank')}</span>
+                  <select
+                    value={payoutForm.institution}
+                    onChange={(event) =>
+                      setPayoutForm((current) => ({
+                        ...current,
+                        institution: event.target.value,
+                      }))
+                    }
+                    required
+                  >
+                    <option value="">{t('Choose a bank')}</option>
+                    <option value="commercial_bank_of_ethiopia">
+                      {t('Commercial Bank of Ethiopia')}
+                    </option>
+                    <option value="awash_bank">{t('Awash Bank')}</option>
+                    <option value="cooperative_bank_of_oromia">
+                      {t('Cooperative Bank of Oromia')}
+                    </option>
+                    <option value="enat_bank">{t('Enat Bank')}</option>
+                    <option value="amhara_bank">{t('Amhara Bank')}</option>
+                  </select>
+                </label>
+              ) : null}
+
+              <label>
+                <span>{t('Account holder name')}</span>
+                <input
+                  type="text"
+                  value={payoutForm.accountName}
+                  onChange={(event) =>
+                    setPayoutForm((current) => ({
+                      ...current,
+                      accountName: event.target.value,
+                    }))
+                  }
+                  minLength={2}
+                  maxLength={150}
+                  autoComplete="name"
+                  required
+                />
+              </label>
+
+              <label>
+                <span>{t('Account number or mobile money phone')}</span>
+                <input
+                  type="password"
+                  value={payoutForm.accountNumber}
+                  onChange={(event) =>
+                    setPayoutForm((current) => ({
+                      ...current,
+                      accountNumber: event.target.value,
+                    }))
+                  }
+                  inputMode="numeric"
+                  autoComplete="off"
+                  aria-describedby="payout-account-number-note"
+                  required
+                />
+                <small id="payout-account-number-note">
+                  {t('For security, re-enter the account number when you update it.')}
+                </small>
+              </label>
+            </div>
+
+            <div className="seller-payout-actions">
+              <button type="submit" className="primary-button" disabled={isPayoutSaving}>
+                {t(isPayoutSaving ? 'Saving payout account...' : 'Save payout account')}
+              </button>
+              {payoutAccount ? (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={handlePayoutRemove}
+                  disabled={isPayoutSaving}
+                >
+                  {t('Remove account')}
+                </button>
+              ) : null}
+            </div>
+          </form>
+        ) : null}
+
+        <p className="seller-payout-note">
+          {t('Account numbers and holder names are encrypted; only the last four digits are shown. Automatic transfers are not enabled yet.')}
+        </p>
+        {payoutSuccess ? <div className="seller-success" role="status">{payoutSuccess}</div> : null}
+        {payoutError ? <div className="auth-error" role="alert">{payoutError}</div> : null}
       </section>
 
       <section className="seller-product-panel seller-orders-panel">
