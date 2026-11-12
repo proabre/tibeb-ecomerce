@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '../useLanguage.js';
 
 const emptyShippingForm = {
@@ -92,9 +92,10 @@ function Checkout({ cart, subtotal, onCheckout }) {
   const [selectedPaymentOption, setSelectedPaymentOption] = useState('telebirr');
   const [checkoutError, setCheckoutError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orderConfirmation, setOrderConfirmation] = useState(null);
   const navigate = useNavigate();
 
-  if (cart.length === 0) {
+  if (cart.length === 0 && !isSubmitting && !orderConfirmation) {
     return <Navigate to="/cart" replace />;
   }
 
@@ -128,7 +129,7 @@ function Checkout({ cart, subtotal, onCheckout }) {
             : {}),
         },
       );
-      navigate(order?._id ? `/orders/${order._id}` : '/orders');
+      setOrderConfirmation(order);
     } catch (error) {
       setCheckoutError(
         error?.response?.data?.message || t('Checkout failed. Please try again.'),
@@ -342,6 +343,40 @@ function Checkout({ cart, subtotal, onCheckout }) {
           </p>
         </aside>
       </div>
+      {orderConfirmation ? (
+        <div className="modal-backdrop order-confirmation-backdrop">
+          <section
+            className="logout-modal order-confirmation-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-confirmation-title"
+            aria-describedby="order-confirmation-message"
+          >
+            <span className="order-confirmation-icon">
+              <CheckCircle2 size={30} aria-hidden="true" />
+            </span>
+            <h2 id="order-confirmation-title">{t('Order placed successfully!')}</h2>
+            <p id="order-confirmation-message">
+              {t('Your order has been received. You can track its status and delivery progress in your orders.')}
+            </p>
+            {orderConfirmation.orderNumber || orderConfirmation.id ? (
+              <p className="order-confirmation-number">
+                {t('Order number')}: <strong>{orderConfirmation.orderNumber || orderConfirmation.id}</strong>
+              </p>
+            ) : null}
+            <div className="logout-modal-actions">
+              <button
+                type="button"
+                className="logout-confirm-button"
+                onClick={() => navigate(orderConfirmation._id ? `/orders/${orderConfirmation._id}` : '/orders')}
+              >
+                {t('View order details')}
+                <ArrowRight size={17} aria-hidden="true" />
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
